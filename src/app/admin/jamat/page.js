@@ -7,12 +7,13 @@ import Link from "next/link";
 const locations = masjidList.map((m) => m.Address);
 const masjids = masjidList.map((m) => m.Name || m.name); // Fix: support both Name and name
 
-const jamatTimes = [
-    { name: "Fajr", time: "04:29:23 AM", color: "border-blue-500" },
-    { name: "Zuhr", time: "12:04:59 PM", color: "border-red-500" },
-    { name: "Asar", time: "04:35:58 PM", color: "border-yellow-500" },
-    { name: "Maghrib", time: "06:26:12 PM", color: "border-pink-500" },
-    { name: "Isha", time: "07:40:09 PM", color: "border-indigo-500" },
+// These times are editable in the UI table below
+const jamatTimesInitial = [
+    { name: "Fajr", time: "04:29 AM", color: "border-blue-500" },
+    { name: "Zuhr", time: "12:04 PM", color: "border-red-500" },
+    { name: "Asar", time: "04:35 PM", color: "border-yellow-500" },
+    { name: "Maghrib", time: "06:26 PM", color: "border-pink-500" },
+    { name: "Isha", time: "07:40 PM", color: "border-indigo-500" },
 ];
 
 function DigitalClock() {
@@ -24,7 +25,6 @@ function DigitalClock() {
     const pad = (n) => n.toString().padStart(2, "0");
     let hours = time.getHours();
     const minutes = pad(time.getMinutes());
-    const seconds = pad(time.getSeconds());
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12 || 12;
     hours = pad(hours);
@@ -42,7 +42,7 @@ function DigitalClock() {
                         letterSpacing: "0.08em",
                     }}
                 >
-                    {hours}:{minutes}:{seconds}
+                    {hours}:{minutes}
                 </span>
                 <span className="text-lg font-bold text-primary ml-1 mb-1 select-none">
                     {ampm}
@@ -56,6 +56,11 @@ export default function AdminJamatTimesPage() {
     const [selectedLocation, setSelectedLocation] = useState("");
     const [selectedMasjid, setSelectedMasjid] = useState("");
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [jamatTimes, setJamatTimes] = useState(() =>
+        jamatTimesInitial.map((jt) => ({ ...jt }))
+    );
+    const [editIndex, setEditIndex] = useState(null);
+    const [editTime, setEditTime] = useState("");
 
     return (
         <div className="min-h-screen flex bg-gray-100">
@@ -200,22 +205,140 @@ export default function AdminJamatTimesPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {jamatTimes.map((prayer) => (
+                                        {jamatTimes.map((prayer, idx) => (
                                             <tr
-                                                key={prayer.name}
+                                                key={idx}
                                                 className="border-b last:border-b-0"
                                             >
                                                 <td className="px-2 sm:px-4 py-2 font-medium text-black">
                                                     {prayer.name}
                                                 </td>
                                                 <td className="px-2 sm:px-4 py-2 font-mono text-black">
-                                                    {prayer.time}
+                                                    {editIndex === idx ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <input
+                                                                type="text"
+                                                                className="input input-bordered input-xs w-16 bg-yellow-100 border border-yellow-400 text-black"
+                                                                value={
+                                                                    // Only HH:MM part for editing
+                                                                    editTime.split(
+                                                                        " "
+                                                                    )[0] || ""
+                                                                }
+                                                                onChange={(
+                                                                    e
+                                                                ) => {
+                                                                    // Keep only HH:MM, preserve AM/PM
+                                                                    const ampm =
+                                                                        (
+                                                                            editTime.split(
+                                                                                " "
+                                                                            )[1] ||
+                                                                            "AM"
+                                                                        ).toUpperCase();
+                                                                    setEditTime(
+                                                                        e.target.value
+                                                                            .replace(
+                                                                                /[^0-9:]/g,
+                                                                                ""
+                                                                            )
+                                                                            .slice(
+                                                                                0,
+                                                                                5
+                                                                            ) +
+                                                                            " " +
+                                                                            ampm
+                                                                    );
+                                                                }}
+                                                                autoFocus
+                                                                placeholder="HH:MM"
+                                                                maxLength={5}
+                                                            />
+                                                            <span className="ml-1 px-2 py-1 rounded bg-gray-200 text-xs font-bold select-none">
+                                                                {(
+                                                                    editTime.split(
+                                                                        " "
+                                                                    )[1] || "AM"
+                                                                ).toUpperCase()}
+                                                            </span>
+                                                        </div>
+                                                    ) : // Only show HH:MM AM/PM (remove seconds if present)
+                                                    prayer.time.length > 5 ? (
+                                                        prayer.time.slice(
+                                                            0,
+                                                            5
+                                                        ) +
+                                                        " " +
+                                                        prayer.time.slice(-2)
+                                                    ) : (
+                                                        prayer.time
+                                                    )}
                                                 </td>
                                                 <td className="px-2 sm:px-4 py-2 flex flex-col sm:flex-row gap-2">
-                                                    <button className="btn btn-xs btn-primary mr-0 sm:mr-2 text-black">
-                                                        Edit
-                                                    </button>
-                                                    {/* Delete button removed */}
+                                                    {editIndex === idx ? (
+                                                        <>
+                                                            <button
+                                                                className="btn btn-xs btn-success mr-0 sm:mr-2 text-black"
+                                                                onClick={() => {
+                                                                    const updated =
+                                                                        [
+                                                                            ...jamatTimes,
+                                                                        ];
+                                                                    updated[
+                                                                        idx
+                                                                    ] = {
+                                                                        ...updated[
+                                                                            idx
+                                                                        ],
+                                                                        time: editTime,
+                                                                    };
+                                                                    setJamatTimes(
+                                                                        updated
+                                                                    );
+                                                                    setEditIndex(
+                                                                        null
+                                                                    );
+                                                                    setEditTime(
+                                                                        ""
+                                                                    );
+                                                                }}
+                                                            >
+                                                                Save
+                                                            </button>
+                                                            <button
+                                                                className="btn btn-xs btn-error text-black"
+                                                                onClick={() => {
+                                                                    setEditIndex(
+                                                                        null
+                                                                    );
+                                                                    setEditTime(
+                                                                        ""
+                                                                    );
+                                                                }}
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <button
+                                                            className="btn btn-xs btn-primary mr-0 sm:mr-2 text-black"
+                                                            onClick={() => {
+                                                                console.log(
+                                                                    "Edit clicked for",
+                                                                    prayer.name,
+                                                                    idx
+                                                                ); // Debug
+                                                                setEditIndex(
+                                                                    idx
+                                                                );
+                                                                setEditTime(
+                                                                    prayer.time
+                                                                );
+                                                            }}
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}
