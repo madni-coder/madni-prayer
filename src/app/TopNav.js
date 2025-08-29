@@ -14,6 +14,10 @@ const navLinks = [
 
 export default function TopNav() {
     const pathname = usePathname();
+    // Hide TopNav on any /admin route
+    if (pathname.startsWith("/admin")) {
+        return null;
+    }
     return (
         <nav className="sticky top-0 z-50 bg-base-100 backdrop-blur border-b border-base-300 shadow-sm">
             <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-2">
