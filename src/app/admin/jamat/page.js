@@ -136,6 +136,13 @@ export default function AdminJamatTimesPage() {
                     >
                         Rewards
                     </Link>
+                    <Link
+                        href="/admin/notice"
+                        className="px-4 py-2 rounded hover:bg-primary hover:text-white transition-colors font-medium text-black"
+                        onClick={() => setSidebarOpen(false)}
+                    >
+                        Notice
+                    </Link>
                     <button
                         className="px-4 py-2 rounded hover:bg-error hover:text-white transition-colors font-medium text-left text-black"
                         // Add your logout logic here
