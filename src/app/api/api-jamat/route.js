@@ -10,8 +10,9 @@ export async function POST(request) {
 
         // Validate required fields
         const requiredFields = [
+            "masjidName",
             "colony",
-            "masjid",
+            "locality",
             "fazar",
             "zuhar",
             "asar",
@@ -34,16 +35,15 @@ export async function POST(request) {
         // Create new jamat time entry
         const newJamatTime = {
             id: Date.now().toString(), // Simple ID generation
+            masjidName: body.masjidName,
             colony: body.colony,
-            masjid: body.masjid,
-            fazar: body.fazar,
-            zuhar: body.zuhar,
-            asar: body.asar,
-            maghrib: body.maghrib,
-            isha: body.isha,
-            juma: body.juma,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            locality: body.locality,
+            fazar: body.fazar || "00:00",
+            zuhar: body.zuhar || "00:00",
+            asar: body.asar || "00:00",
+            maghrib: body.maghrib || "00:00",
+            isha: body.isha || "00:00",
+            juma: body.juma || "00:00",
         };
 
         // Add to storage
@@ -69,7 +69,8 @@ export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
         const colony = searchParams.get("colony");
-        const masjid = searchParams.get("masjid");
+        const masjidName = searchParams.get("masjidName");
+        const locality = searchParams.get("locality");
 
         let filteredTimes = jamaatTimes;
 
@@ -80,10 +81,17 @@ export async function GET(request) {
             );
         }
 
-        // Filter by masjid if provided
-        if (masjid) {
+        // Filter by masjidName if provided
+        if (masjidName) {
             filteredTimes = filteredTimes.filter((time) =>
-                time.masjid.toLowerCase().includes(masjid.toLowerCase())
+                time.masjidName.toLowerCase().includes(masjidName.toLowerCase())
+            );
+        }
+
+        // Filter by locality if provided
+        if (locality) {
+            filteredTimes = filteredTimes.filter((time) =>
+                time.locality.toLowerCase().includes(locality.toLowerCase())
             );
         }
 
@@ -94,6 +102,54 @@ export async function GET(request) {
         });
     } catch (error) {
         console.error("Error fetching jamat times:", error);
+        return NextResponse.json(
+            { error: "Internal server error" },
+            { status: 500 }
+        );
+    }
+}
+
+export async function DELETE(request) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const action = searchParams.get("action");
+        const id = searchParams.get("id");
+
+        if (action === "clear") {
+            // Clear all masjids
+            const count = jamaatTimes.length;
+            jamaatTimes = [];
+
+            return NextResponse.json({
+                message: `Successfully cleared all ${count} masjids`,
+                clearedCount: count,
+            });
+        } else if (id) {
+            // Delete specific masjid by ID
+            const initialLength = jamaatTimes.length;
+            jamaatTimes = jamaatTimes.filter((time) => time.id !== id);
+
+            if (jamaatTimes.length < initialLength) {
+                return NextResponse.json({
+                    message: "Masjid deleted successfully",
+                    deletedId: id,
+                });
+            } else {
+                return NextResponse.json(
+                    { error: "Masjid not found" },
+                    { status: 404 }
+                );
+            }
+        } else {
+            return NextResponse.json(
+                {
+                    error: "Invalid delete request. Use ?action=clear to clear all or ?id=<id> to delete specific masjid",
+                },
+                { status: 400 }
+            );
+        }
+    } catch (error) {
+        console.error("Error deleting jamat times:", error);
         return NextResponse.json(
             { error: "Internal server error" },
             { status: 500 }

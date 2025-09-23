@@ -1,34 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { RefreshCw, X } from "lucide-react";
 
-const MASJIDS = [
-    {
-        id: 1,
-        name: "Al-Noor Masjid",
-        address: "Block A, Gulshan-e-Iqbal",
-        locality: "Karachi",
-    },
-    {
-        id: 2,
-        name: "Falah Masjid",
-        address: "Model Town, Block C",
-        locality: "Lahore",
-    },
-    {
-        id: 3,
-        name: "Nurani Masjid",
-        address: "F-8 Sector, Street 15",
-        locality: "Islamabad",
-    },
-];
-
 export default function Page() {
+    const searchParams = useSearchParams();
+    const [masjids, setMasjids] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
     const [localityFilter, setLocalityFilter] = useState("All");
     const [addressFilter, setAddressFilter] = useState("All");
-    const [searchQuery, setSearchQuery] = useState("");
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+    // Fetch masjids from API
+    const fetchMasjids = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch("/api/api-jamat");
+            const result = await response.json();
+
+            if (response.ok) {
+                // Transform API data to match expected structure
+                const transformedData = result.data.map((item) => ({
+                    id: item.id,
+                    name: item.masjidName,
+                    address: item.colony,
+                    locality: item.locality,
+                }));
+                setMasjids(transformedData);
+            } else {
+                console.error("Failed to fetch masjids:", result.error);
+            }
+        } catch (error) {
+            console.error("Error fetching masjids:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchMasjids();
+    }, []);
+
+    // Listen for refresh parameter changes
+    useEffect(() => {
+        const refreshParam = searchParams.get("refresh");
+        if (refreshParam) {
+            fetchMasjids();
+        }
+    }, [searchParams]);
 
     const handleReset = () => {
         setLocalityFilter("All");
@@ -48,7 +70,41 @@ export default function Page() {
         setLocalityFilter("All");
     };
 
-    const filteredMasjids = MASJIDS.filter((masjid) => {
+    const handleClearAll = () => {
+        setShowClearConfirm(true);
+    };
+
+    const confirmClearAll = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch("/api/api-jamat?action=clear", {
+                method: "DELETE",
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                setMasjids([]);
+                setShowClearConfirm(false);
+                // Reset filters
+                handleReset();
+            } else {
+                console.error("Failed to clear masjids:", result.error);
+                alert("Failed to clear masjids. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error clearing masjids:", error);
+            alert("Error clearing masjids. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const cancelClearAll = () => {
+        setShowClearConfirm(false);
+    };
+
+    const filteredMasjids = masjids.filter((masjid) => {
         const matchesLocality =
             localityFilter === "All" || masjid.locality === localityFilter;
         const matchesAddress =
@@ -60,16 +116,29 @@ export default function Page() {
         return matchesLocality && matchesAddress && matchesSearch;
     });
 
+    // Get unique values for filter options
+    const uniqueLocalities = [...new Set(masjids.map((m) => m.locality))];
+    const uniqueAddresses = [...new Set(masjids.map((m) => m.address))];
+
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-semibold text-gray-900">Masjid</h1>
-                <Link href="/admin/all-masjids/add">
-                    <button className="bg-green-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                        Add Masjid Entry
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleClearAll}
+                        disabled={loading || masjids.length === 0}
+                        className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    >
+                        Clear All Masjids
                     </button>
-                </Link>
+                    <Link href="/admin/all-masjids/add">
+                        <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                            Add Masjid Entry
+                        </button>
+                    </Link>
+                </div>
             </div>
 
             {/* Filters */}
@@ -111,15 +180,11 @@ export default function Page() {
                                 className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black appearance-none"
                             >
                                 <option value="All">All</option>
-                                <option value="Block A, Gulshan-e-Iqbal">
-                                    Block A, Gulshan-e-Iqbal
-                                </option>
-                                <option value="Model Town, Block C">
-                                    Model Town, Block C
-                                </option>
-                                <option value="F-8 Sector, Street 15">
-                                    F-8 Sector, Street 15
-                                </option>
+                                {uniqueAddresses.map((address) => (
+                                    <option key={address} value={address}>
+                                        {address}
+                                    </option>
+                                ))}
                             </select>
                             {addressFilter !== "All" && (
                                 <button
@@ -145,9 +210,11 @@ export default function Page() {
                                 className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black appearance-none"
                             >
                                 <option value="All">All</option>
-                                <option value="Karachi">Karachi</option>
-                                <option value="Lahore">Lahore</option>
-                                <option value="Islamabad">Islamabad</option>
+                                {uniqueLocalities.map((locality) => (
+                                    <option key={locality} value={locality}>
+                                        {locality}
+                                    </option>
+                                ))}
                             </select>
                             {localityFilter !== "All" && (
                                 <button
@@ -185,40 +252,86 @@ export default function Page() {
 
                 {/* Table Body */}
                 <div className="divide-y divide-gray-200">
-                    {filteredMasjids.map((masjid) => (
-                        <div
-                            key={masjid.id}
-                            className="grid grid-cols-6 gap-4 px-6 py-4 hover:bg-gray-50 transition-colors"
-                        >
-                            {/* Masjid Info */}
-                            <div className="col-span-2 flex items-center space-x-3">
-                                <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                                    <span className="text-lg">🕌</span>
+                    {loading ? (
+                        <div className="px-6 py-8 text-center text-gray-500">
+                            <RefreshCw
+                                className="animate-spin mx-auto mb-2"
+                                size={24}
+                            />
+                            Loading masjids...
+                        </div>
+                    ) : filteredMasjids.length === 0 ? (
+                        <div className="px-6 py-8 text-center text-gray-500">
+                            No masjids found.{" "}
+                            {masjids.length === 0
+                                ? "Add your first masjid!"
+                                : "Try adjusting your filters."}
+                        </div>
+                    ) : (
+                        filteredMasjids.map((masjid) => (
+                            <div
+                                key={masjid.id}
+                                className="grid grid-cols-6 gap-4 px-6 py-4 hover:bg-gray-50 transition-colors"
+                            >
+                                {/* Masjid Info */}
+                                <div className="col-span-2 flex items-center space-x-3">
+                                    <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                                        <span className="text-lg">🕌</span>
+                                    </div>
+                                    <div>
+                                        <div className="font-medium text-gray-900">
+                                            {masjid.name}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div className="font-medium text-gray-900">
-                                        {masjid.name}
+
+                                {/* Colony Address */}
+                                <div className="col-span-2">
+                                    <div className="text-sm text-gray-900">
+                                        {masjid.address}
+                                    </div>
+                                </div>
+
+                                {/* Locality */}
+                                <div className="col-span-2">
+                                    <div className="text-sm text-gray-900">
+                                        {masjid.locality}
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Colony Address */}
-                            <div className="col-span-2">
-                                <div className="text-sm text-gray-900">
-                                    {masjid.address}
-                                </div>
-                            </div>
-
-                            {/* Locality */}
-                            <div className="col-span-2">
-                                <div className="text-sm text-gray-900">
-                                    {masjid.locality}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             </div>
+
+            {/* Clear All Confirmation Modal */}
+            {showClearConfirm && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                            Clear All Masjids
+                        </h3>
+                        <p className="text-gray-600 mb-6">
+                            Are you sure you want to clear all {masjids.length}{" "}
+                            masjids? This action cannot be undone.
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={cancelClearAll}
+                                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmClearAll}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                            >
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

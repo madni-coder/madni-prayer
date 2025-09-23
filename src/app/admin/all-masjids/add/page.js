@@ -1,16 +1,16 @@
 "use client";
 import { useState } from "react";
-import { FaPencilAlt, FaCheckCircle } from "react-icons/fa";
+import { FaCheckCircle } from "react-icons/fa";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 
 const prayers = [
-    { name: "Fajr", defaultTime: "5:00 am" },
-    { name: "Zuhar", defaultTime: "6:10 am" },
-    { name: "Asr", defaultTime: "4:30 pm" },
-    { name: "Maghrib", defaultTime: "7:15 pm" },
-    { name: "Isha", defaultTime: "8:45 pm" },
-    { name: "Juma", defaultTime: "1:30 pm" },
+    { name: "Fajr", defaultTime: "00:00" },
+    { name: "Zuhar", defaultTime: "00:00" },
+    { name: "Asr", defaultTime: "00:00" },
+    { name: "Maghrib", defaultTime: "00:00" },
+    { name: "Isha", defaultTime: "00:00" },
+    { name: "Juma", defaultTime: "00:00" },
 ];
 
 export default function AddMasjidPage() {
@@ -21,9 +21,13 @@ export default function AddMasjidPage() {
     const [times, setTimes] = useState(prayers.map((p) => p.defaultTime));
     const [editIdx, setEditIdx] = useState(null);
     const [editValue, setEditValue] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
 
-    const handleTimeChange = (idx, value) => {
-        setTimes((times) => times.map((t, i) => (i === idx ? value : t)));
+    // Validation function to check if all times are properly set
+    const areAllTimesValid = () => {
+        return times.every((time) => time && time.trim() !== "");
     };
 
     const handleEdit = (idx) => {
@@ -38,13 +42,132 @@ export default function AddMasjidPage() {
         setEditIdx(null);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Submit logic here
+
+        // Validate that all fields are filled
+        if (!masjidName.trim() || !colony.trim() || !locality.trim()) {
+            setErrorMessage(
+                "Please fill in all masjid details (Name, Colony, Locality)"
+            );
+            return;
+        }
+
+        // Validate that all Jamat times are set
+        if (!areAllTimesValid()) {
+            setErrorMessage(
+                "Please set all Jamat times before adding the masjid"
+            );
+            return;
+        }
+
+        setIsSubmitting(true);
+        setErrorMessage(""); // Clear any previous errors
+
+        try {
+            const jamaatData = {
+                masjidName,
+                colony,
+                locality,
+                fazar: convertTo24(times[0]),
+                zuhar: convertTo24(times[1]),
+                asar: convertTo24(times[2]),
+                maghrib: convertTo24(times[3]),
+                isha: convertTo24(times[4]),
+                juma: convertTo24(times[5]),
+            };
+
+            const response = await fetch("/api/api-jamat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(jamaatData),
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                setShowSuccess(true);
+                // Reset form
+                setMasjidName("");
+                setColony("");
+                setLocality("");
+                setTimes(prayers.map((p) => p.defaultTime));
+                // Hide success message after 3 seconds and redirect
+                setTimeout(() => {
+                    setShowSuccess(false);
+                    router.push("/admin/all-masjids?refresh=" + Date.now());
+                }, 3000);
+            } else {
+                setErrorMessage(`Error: ${result.error}`);
+                if (result.missingFields) {
+                    console.log("Missing fields:", result.missingFields);
+                }
+            }
+        } catch (error) {
+            console.error("Error submitting form:", error);
+            setErrorMessage("Failed to add masjid. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
         <div className="min-h-screen bg-white flex flex-col items-center py-10">
+            {/* Success Message Card */}
+            {showSuccess && (
+                <div className="fixed top-4 right-4 z-50 animate-pulse">
+                    <div className="bg-green-50 border border-green-200 rounded-lg shadow-lg p-6 max-w-sm">
+                        <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                                <FaCheckCircle className="h-8 w-8 text-green-400" />
+                            </div>
+                            <div className="ml-3">
+                                <h3 className="text-lg font-medium text-green-800">
+                                    Success!
+                                </h3>
+                                <p className="text-sm text-green-600 mt-1">
+                                    Masjid has been added successfully.
+                                    Redirecting...
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Error Message Card */}
+            {errorMessage && (
+                <div className="fixed top-4 right-4 z-50">
+                    <div className="bg-red-50 border border-red-200 rounded-lg shadow-lg p-6 max-w-sm">
+                        <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                                <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                                    <span className="text-red-600 font-bold">
+                                        !
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="ml-3">
+                                <h3 className="text-lg font-medium text-red-800">
+                                    Error
+                                </h3>
+                                <p className="text-sm text-red-600 mt-1">
+                                    {errorMessage}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setErrorMessage("")}
+                                className="ml-4 text-red-400 hover:text-red-600"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="w-full max-w-5xl flex items-center mb-4">
                 <button
                     className="bg-blue-600 hover:bg-blue-700 text-white btn btn-sm mr-2 flex items-center gap-1"
@@ -99,12 +222,6 @@ export default function AddMasjidPage() {
                                 required
                             />
                         </div>
-                        <button
-                            type="submit"
-                            className="btn w-full mt-4 bg-green-500 hover:bg-green-600 text-white rounded-none"
-                        >
-                            Add Masjid
-                        </button>
                     </form>
                 </div>
                 {/* Jamat Time Table */}
@@ -181,7 +298,7 @@ export default function AddMasjidPage() {
                                                 className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded flex items-center"
                                                 onClick={() => handleEdit(idx)}
                                             >
-                                                <FaPencilAlt size={16} />
+                                                <Plus size={16} />
                                             </button>
                                         </td>
                                     </tr>
@@ -190,6 +307,31 @@ export default function AddMasjidPage() {
                         </table>
                     </div>
                 </div>
+            </div>
+
+            {/* Add Masjid Button - Below both cards */}
+            <div className="w-full max-w-5xl mt-8">
+                <button
+                    onClick={handleSubmit}
+                    disabled={
+                        isSubmitting ||
+                        !masjidName.trim() ||
+                        !colony.trim() ||
+                        !locality.trim() ||
+                        !areAllTimesValid()
+                    }
+                    className={`btn w-full text-white rounded-none py-4 text-lg font-semibold ${
+                        isSubmitting ||
+                        !masjidName.trim() ||
+                        !colony.trim() ||
+                        !locality.trim() ||
+                        !areAllTimesValid()
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : "bg-green-500 hover:bg-green-600"
+                    }`}
+                >
+                    {isSubmitting ? "Adding Masjid..." : "Add Masjid"}
+                </button>
             </div>
         </div>
     );

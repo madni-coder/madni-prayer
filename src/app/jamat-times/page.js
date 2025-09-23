@@ -1,128 +1,235 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import masjidList from "./list.json";
-
-// Extract addresses and names from the JSON list
-const colonies = masjidList.map((m) => m.Address);
-const masjids = masjidList.map((m) => m.name);
-
-const jamatTimes = [
-    { name: "Fajr", time: "05:25 AM", color: "border-blue-500" },
-    { name: "Zuhr", time: "01:30 PM", color: "border-red-500" },
-    { name: "Asar", time: "05:00 PM", color: "border-yellow-500" },
-    { name: "Maghrib", time: "06:23 PM", color: "border-pink-500" },
-    { name: "Isha", time: "08:30 PM", color: "border-indigo-500" },
-    { name: "Juma Khutba", time: "01:30 PM", color: "border-green-500" },
-];
-
-function DigitalClock() {
-    const [time, setTime] = useState(new Date());
-    useEffect(() => {
-        const interval = setInterval(() => setTime(new Date()), 1000);
-        return () => clearInterval(interval);
-    }, []);
-    const pad = (n) => n.toString().padStart(2, "0");
-    let hours = time.getHours();
-    const minutes = pad(time.getMinutes());
-    const seconds = pad(time.getSeconds());
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12 || 12;
-    hours = pad(hours);
-
-    return (
-        <div className="flex flex-col items-center mb-4">
-            <span className="mt-1 text-xl text-amber-100 tracking-widest">
-                Current Time
-            </span>
-            <br />
-            <div className="flex items-end gap-2">
-                <span
-                    className="text-4xl md:text-5xl font-mono font-extrabold text-primary bg-black/80 px-6 py-3 rounded-xl shadow-lg border-4 border-primary"
-                    style={{
-                        fontFamily: "'Orbitron', 'Fira Mono', monospace",
-                        letterSpacing: "0.08em",
-                        boxShadow: "0 4px 24px #0004, 0 1px 0 #fff2",
-                    }}
-                >
-                    {hours}:{minutes}:{seconds}
-                </span>
-                <span className="text-xl md:text-xl font-bold text-primary ml-1 mb-2 select-none">
-                    {ampm}
-                </span>
-            </div>
-        </div>
-    );
-}
+import { useState, useEffect } from "react";
 
 export default function JamatTimesPage() {
     const [selectedColony, setSelectedColony] = useState("");
     const [selectedMasjid, setSelectedMasjid] = useState("");
+    const [masjids, setMasjids] = useState([]);
+    const [colonies, setColonies] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedMasjidData, setSelectedMasjidData] = useState(null);
+    const [error, setError] = useState(null);
+
+    // Fetch masjids from API
+    useEffect(() => {
+        const fetchMasjids = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const response = await fetch("/api/api-jamat");
+                const result = await response.json();
+
+                if (response.ok && result.data) {
+                    setMasjids(result.data);
+                    // Extract unique colonies
+                    const uniqueColonies = [
+                        ...new Set(result.data.map((m) => m.colony)),
+                    ];
+                    setColonies(uniqueColonies);
+                } else {
+                    setError("Failed to load masjids");
+                }
+            } catch (error) {
+                console.error("Error fetching masjids:", error);
+                setError("Failed to connect to server");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchMasjids();
+    }, []);
+
+    // Update jamat times when masjid is selected
+    useEffect(() => {
+        if (selectedMasjid) {
+            const masjidData = masjids.find(
+                (m) => m.masjidName === selectedMasjid
+            );
+            setSelectedMasjidData(masjidData);
+        } else {
+            setSelectedMasjidData(null);
+        }
+    }, [selectedMasjid, masjids]);
+
+    // Convert 24-hour time to 12-hour format
+    const convertTo12Hour = (time24) => {
+        if (!time24 || time24 === "00:00") return "Not Set";
+        const [hours, minutes] = time24.split(":");
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? "PM" : "AM";
+        const hour12 = hour % 12 || 12;
+        return `${hour12}:${minutes} ${ampm}`;
+    };
+
+    // Get jamat times based on selected masjid
+    const getJamatTimes = () => {
+        if (!selectedMasjidData) {
+            return [
+                {
+                    name: "Fajr",
+                    time: "Select a masjid",
+                    color: "border-blue-500",
+                },
+                {
+                    name: "Zuhr",
+                    time: "Select a masjid",
+                    color: "border-red-500",
+                },
+                {
+                    name: "Asr",
+                    time: "Select a masjid",
+                    color: "border-yellow-500",
+                },
+                {
+                    name: "Maghrib",
+                    time: "Select a masjid",
+                    color: "border-pink-500",
+                },
+                {
+                    name: "Isha",
+                    time: "Select a masjid",
+                    color: "border-indigo-500",
+                },
+                {
+                    name: "Juma",
+                    time: "Select a masjid",
+                    color: "border-green-500",
+                },
+            ];
+        }
+
+        return [
+            {
+                name: "Fajr",
+                time: convertTo12Hour(selectedMasjidData.fazar),
+                color: "border-blue-500",
+            },
+            {
+                name: "Zuhr",
+                time: convertTo12Hour(selectedMasjidData.zuhar),
+                color: "border-red-500",
+            },
+            {
+                name: "Asr",
+                time: convertTo12Hour(selectedMasjidData.asar),
+                color: "border-yellow-500",
+            },
+            {
+                name: "Maghrib",
+                time: convertTo12Hour(selectedMasjidData.maghrib),
+                color: "border-pink-500",
+            },
+            {
+                name: "Isha",
+                time: convertTo12Hour(selectedMasjidData.isha),
+                color: "border-indigo-500",
+            },
+            {
+                name: "Juma",
+                time: convertTo12Hour(selectedMasjidData.juma),
+                color: "border-green-500",
+            },
+        ];
+    };
+
+    // Filter masjids by selected colony
+    const getFilteredMasjids = () => {
+        if (!selectedColony) return masjids;
+        return masjids.filter((m) => m.colony === selectedColony);
+    };
+
+    // Handle colony change
+    const handleColonyChange = (e) => {
+        setSelectedColony(e.target.value);
+        setSelectedMasjid(""); // Reset masjid selection when colony changes
+    };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-base-200">
-            {/* Responsive and sticky digital clock at the very top */}
-            <div className="sticky top-0 left-0 w-full z-10 flex justify-center bg-base-200/80 backdrop-blur-sm py-2">
-                <div className="w-full max-w-xs sm:max-w-sm md:max-w-md">
-                    <DigitalClock />
-                </div>
-            </div>
-            <div className="w-full max-w-md mt-8">
-                <div className="flex justify-start mb-8 ml-8">
-                    <button
-                        className="btn btn-outline btn-primary btn-xxl transition-all duration-200 hover:scale-105 hover:bg-primary hover:text-primary-content"
-                        // onClick handler can be added here for actual auto-locate functionality
-                    >
-                        AUTO LOCATE
-                    </button>
-                </div>
+        <div className="min-h-screen flex flex-col items-center justify-center bg-base-200 p-4">
+            <div className="w-full max-w-md">
+                {error && (
+                    <div className="alert alert-error mb-4">
+                        <span>{error}</span>
+                        <button
+                            className="btn btn-sm btn-ghost"
+                            onClick={() => window.location.reload()}
+                        >
+                            Retry
+                        </button>
+                    </div>
+                )}
 
-                {/* Side by side dropdowns */}
-                <div className="flex flex-col sm:flex-row gap-4 mb-6 ml-4 mr-4">
-                    <div className="flex-1">
+                {/* Dropdowns */}
+                <div className="flex flex-col gap-4 mb-6">
+                    <div>
                         <label className="label">
                             <span className="label-text font-semibold">
                                 Masjid Name
                             </span>
                         </label>
                         <select
-                            className="select select-primary select-lg w-full"
+                            className="select select-primary w-full"
                             value={selectedMasjid}
                             onChange={(e) => setSelectedMasjid(e.target.value)}
+                            disabled={loading}
                         >
-                            <option value=""> Select Masjid </option>
-                            {masjids.map((masjid) => (
-                                <option key={masjid} value={masjid}>
-                                    {masjid}
+                            <option value="">
+                                {loading
+                                    ? "Loading..."
+                                    : getFilteredMasjids().length === 0
+                                    ? "No masjids found"
+                                    : "Select Masjid"}
+                            </option>
+                            {getFilteredMasjids().map((masjid) => (
+                                <option
+                                    key={masjid.id}
+                                    value={masjid.masjidName}
+                                >
+                                    {masjid.masjidName}
                                 </option>
                             ))}
                         </select>
                     </div>
-                    <div className="flex-1">
+                    <div>
                         <label className="label">
                             <span className="label-text font-semibold">
                                 Colony Address
                             </span>
                         </label>
                         <select
-                            className="select select-primary select-lg w-full"
+                            className="select select-primary w-full"
                             value={selectedColony}
-                            onChange={(e) => setSelectedColony(e.target.value)}
+                            onChange={handleColonyChange}
+                            disabled={loading}
                         >
-                            <option value=""> Select Colony Address </option>
-                            {colonies.map((address) => (
-                                <option key={address} value={address}>
-                                    {address}
+                            <option value="">
+                                {loading
+                                    ? "Loading..."
+                                    : "Select Colony Address"}
+                            </option>
+                            {colonies.map((colony) => (
+                                <option key={colony} value={colony}>
+                                    {colony}
                                 </option>
                             ))}
                         </select>
                     </div>
                 </div>
-                <h1 className="text-2xl font-bold mb-2 text-center">
-                    Jamat time
+
+                <h1 className="text-2xl font-bold mb-4 text-center">
+                    Jamat Time In
+                    {selectedMasjidData && (
+                        <div className="text-lg font-semibold text-primary mt-2">
+                            {selectedMasjidData.masjidName} -{" "}
+                            {selectedMasjidData.colony}
+                        </div>
+                    )}
                 </h1>
+
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body p-4">
-                        {jamatTimes.map((prayer) => (
+                        {getJamatTimes().map((prayer) => (
                             <div
                                 key={prayer.name}
                                 className={`flex justify-between items-center border-l-4 ${prayer.color} bg-base-200 rounded-lg px-4 py-3 mb-3 last:mb-0`}
