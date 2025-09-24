@@ -4,17 +4,75 @@
 
 html,
 body {
-  padding: 0;
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+    padding: 0;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+        Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
 }
 
 a {
-  color: inherit;
-  text-decoration: none;
+    color: inherit;
+    text-decoration: none;
 }
 
 * {
-  box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+/* Custom utility classes used in project */
+.glass-card {
+    @apply rounded-2xl border backdrop-blur bg-white/70 dark:bg-gray-800/60 border-base-300 shadow-lg transition;
+}
+
+.neumorph-card {
+    @apply rounded-xl bg-base-100 shadow-md border border-base-300 transition;
+}
+
+.btn-xxl {
+    @apply px-5 py-3 text-sm font-semibold rounded-full;
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+}
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Scrollbar thin for certain panels */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Typography tweaks */
+body {
+    @apply text-base-content;
+}
+
+/* Fallback for elements relying on font-mono large counters */
+.counter-display {
+    @apply font-mono font-bold;
+}
+
+/* Utility for shadow intensity variations */
+.shadow-neon-gold {
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.8),
+        0 0 30px rgba(212, 175, 55, 0.4);
 }
