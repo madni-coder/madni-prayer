@@ -6,6 +6,7 @@ export async function POST(request) {
     try {
         const body = await request.json();
         const {
+            name = null,
             masjidName,
             colony,
             locality = null,
@@ -15,6 +16,8 @@ export async function POST(request) {
             maghrib,
             isha,
             juma,
+            role = null,
+            mobile = null,
         } = body;
 
         const required = [
@@ -47,6 +50,9 @@ export async function POST(request) {
                 maghrib,
                 isha,
                 juma,
+                name,
+                role,
+                mobile,
             },
         });
 
@@ -56,6 +62,78 @@ export async function POST(request) {
         );
     } catch (err) {
         console.error("POST /api/all-masjids error", err);
+        return NextResponse.json(
+            { error: "Internal server error" },
+            { status: 500 }
+        );
+    }
+}
+
+// PATCH: Update an existing Masjid
+export async function PATCH(request) {
+    try {
+        const body = await request.json();
+        const {
+            id,
+            name,
+            masjidName,
+            colony,
+            locality,
+            fazar,
+            zuhar,
+            asar,
+            maghrib,
+            isha,
+            juma,
+            role,
+            mobile,
+        } = body;
+
+        if (!id) {
+            return NextResponse.json(
+                { error: "Missing required field: id" },
+                { status: 400 }
+            );
+        }
+
+        // Check if masjid exists
+        const existingMasjid = await prisma.allMasjid.findUnique({
+            where: { id: parseInt(id) },
+        });
+
+        if (!existingMasjid) {
+            return NextResponse.json(
+                { error: "Masjid not found" },
+                { status: 404 }
+            );
+        }
+
+        // Build update data object with only provided fields
+        const updateData = {};
+        if (name !== undefined) updateData.name = name;
+        if (masjidName !== undefined) updateData.masjidName = masjidName;
+        if (colony !== undefined) updateData.colony = colony;
+        if (locality !== undefined) updateData.locality = locality;
+        if (fazar !== undefined) updateData.fazar = fazar;
+        if (zuhar !== undefined) updateData.zuhar = zuhar;
+        if (asar !== undefined) updateData.asar = asar;
+        if (maghrib !== undefined) updateData.maghrib = maghrib;
+        if (isha !== undefined) updateData.isha = isha;
+        if (juma !== undefined) updateData.juma = juma;
+        if (role !== undefined) updateData.role = role;
+        if (mobile !== undefined) updateData.mobile = mobile;
+
+        const updated = await prisma.allMasjid.update({
+            where: { id: parseInt(id) },
+            data: updateData,
+        });
+
+        return NextResponse.json(
+            { message: "Masjid updated successfully", data: updated },
+            { status: 200 }
+        );
+    } catch (err) {
+        console.error("PATCH /api/all-masjids error", err);
         return NextResponse.json(
             { error: "Internal server error" },
             { status: 500 }

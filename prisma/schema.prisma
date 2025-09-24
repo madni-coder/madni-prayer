@@ -25,6 +25,9 @@ model AllMasjid {
   maghrib    String?
   isha       String?
   juma       String?
+  name       String?  // optional
+  role       String?  // optional
+  mobile     String?  // optional
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

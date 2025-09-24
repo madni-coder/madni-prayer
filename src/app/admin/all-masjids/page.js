@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { RefreshCw, X } from "lucide-react";
+import { RefreshCw, X, Pencil } from "lucide-react";
 
 export default function Page() {
     // Dynamic data state
@@ -216,10 +216,14 @@ export default function Page() {
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 {/* Table Header */}
                 <div className="bg-yellow-600 text-white">
-                    <div className="grid grid-cols-6 gap-4 px-6 py-4 font-medium">
+                    <div className="grid grid-cols-10 gap-4 px-6 py-4 font-medium">
                         <div className="col-span-2">Masjid</div>
                         <div className="col-span-2">Colony Address</div>
                         <div className="col-span-2">Locality</div>
+                        <div>Role</div>
+                        <div>Name</div>
+                        <div>Mobile Number</div>
+                        <div>Actions</div>
                     </div>
                 </div>
 
@@ -233,7 +237,7 @@ export default function Page() {
                     {filteredMasjids.map((m) => (
                         <div
                             key={m.id}
-                            className="grid grid-cols-6 gap-4 px-6 py-4 hover:bg-gray-50 transition-colors"
+                            className="grid grid-cols-10 gap-4 px-6 py-4 hover:bg-gray-50 transition-colors"
                         >
                             <div className="col-span-2 flex items-center space-x-3">
                                 <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
@@ -254,6 +258,33 @@ export default function Page() {
                                 <div className="text-sm text-gray-900">
                                     {m.locality || "-"}
                                 </div>
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-900">
+                                    {m.role || "-"}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-900">
+                                    {m.name || "-"}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-900">
+                                    {m.mobile || "-"}
+                                </div>
+                            </div>
+                            <div>
+                                <Link
+                                    href={`/admin/all-masjids/edit-jamatTime?id=${m.id}`}
+                                >
+                                    <button
+                                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                                        title="Edit Masjid"
+                                    >
+                                        <Pencil size={22} />
+                                    </button>
+                                </Link>
                             </div>
                         </div>
                     ))}

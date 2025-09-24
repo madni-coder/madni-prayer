@@ -18,6 +18,9 @@ export default function AddMasjidPage() {
     const [masjidName, setMasjidName] = useState("");
     const [colony, setColony] = useState("");
     const [locality, setLocality] = useState("");
+    const [role, setRole] = useState("");
+    const [name, setName] = useState("");
+    const [mobile, setMobile] = useState("");
     const [times, setTimes] = useState(prayers.map((p) => p.defaultTime));
     const [editIdx, setEditIdx] = useState(null);
     const [editValue, setEditValue] = useState("");
@@ -51,6 +54,9 @@ export default function AddMasjidPage() {
                 masjidName: masjidName.trim(),
                 colony: colony.trim(),
                 locality: locality.trim() || null,
+                role: role,
+                name: name.trim(),
+                mobile: mobile,
                 // map times
                 fazar: times[0],
                 zuhar: times[1],
@@ -133,6 +139,46 @@ export default function AddMasjidPage() {
                                 className="input input-bordered w-full bg-white text-black border-gray-300 rounded-full"
                                 value={locality}
                                 onChange={(e) => setLocality(e.target.value)}
+                            />
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">
+                                Role
+                            </label>
+                            <select
+                                className="input input-bordered w-full bg-white text-black border-gray-300 rounded-full"
+                                value={role}
+                                onChange={(e) => setRole(e.target.value)}
+                            >
+                                <option value="">Select Role</option>
+                                <option value="mutawalli">Mutawalli</option>
+                                <option value="moizzan">Moizzan</option>
+                                <option value="imam">Imam</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">
+                                Name
+                            </label>
+                            <input
+                                type="text"
+                                className="input input-bordered w-full bg-white text-black border-gray-300 rounded-full"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                            />
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 mb-2">
+                                Mobile Number
+                            </label>
+                            <input
+                                type="number"
+                                className="input input-bordered w-full bg-white text-black border-gray-300 rounded-full"
+                                value={mobile}
+                                onChange={(e) => setMobile(e.target.value)}
+                                minLength={10}
+                                maxLength={15}
                             />
                         </div>
                         {error && (

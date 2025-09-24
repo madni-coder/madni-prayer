@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { MapPin } from "lucide-react";
 
 function DigitalClock() {
     const [time, setTime] = useState(new Date());
@@ -217,10 +218,10 @@ export default function JamatTimesPage() {
                 </h1>
                 {selectedMasjidData && (
                     <div className="text-center mb-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
-                        <div className="text-lg font-semibold text-primary">
+                        <div className="text-xl font-semibold text-primary">
                             {selectedMasjidData.masjidName}
                         </div>
-                        <div className="text-sm text-white-600 mt-1">
+                        <div className="text-xl text-white-600 mt-1">
                             {selectedMasjidData.colony}
                             {selectedMasjidData.locality && (
                                 <span>, {selectedMasjidData.locality}</span>
@@ -246,8 +247,20 @@ export default function JamatTimesPage() {
                                 </div>
                             ))
                         ) : (
-                            <div className="text-center text-gray-500 py-8">
-                                Please select a masjid to view jamat times
+                            <div className="flex flex-col items-center justify-center py-12 px-6">
+                                <div className="w-20 h-20 mb-6 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <MapPin className="w-10 h-10 text-primary" />
+                                </div>
+                                <h3 className="text-xl font-semibold text-center mb-3 text-primary">
+                                    Select a Masjid
+                                </h3>
+                                <p className="text-center text-white-1000 leading-relaxed max-w-sm text-xl">
+                                    Please select a masjid to view jamat times
+                                </p>
+                                <div className="mt-4 flex items-center gap-2 text-xl text-white-500">
+                                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                                    <span>Choose from the dropdown above</span>
+                                </div>
                             </div>
                         )}
                     </div>
