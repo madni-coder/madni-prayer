@@ -1,8 +1,9 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Bell, BellOff, MapPin, Calendar, Moon } from "lucide-react";
 import { FaAngleLeft } from "react-icons/fa";
 import { useRouter } from "next/navigation";
+import cities from "./cities.json";
 
 const initialPrayerTimes = [
     {
@@ -49,6 +50,10 @@ export default function PrayerTimesPage() {
     const [now, setNow] = useState(new Date());
     const [prayerTimes, setPrayerTimes] = React.useState(initialPrayerTimes);
     const [loading, setLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedCity, setSelectedCity] = useState("");
+    const [search, setSearch] = useState("");
+    const modalRef = useRef();
 
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 1000);
@@ -166,7 +171,10 @@ export default function PrayerTimesPage() {
                     <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-white">
                         <span>GMT: 5.5, Height: 964ft</span>
                     </div>
-                    <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-white">
+                    <div
+                        className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-white cursor-pointer"
+                        onClick={() => setIsModalOpen(true)}
+                    >
                         <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
                         <span>Bilaspur, Chhattisgarh 495001</span>
                     </div>
@@ -275,6 +283,65 @@ export default function PrayerTimesPage() {
                     </div>
                 </div>
             </section>
+            {/* Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
+                    <div
+                        ref={modalRef}
+                        className="bg-gray-900 text-white rounded-lg shadow-lg p-6 w-full max-w-md"
+                    >
+                        <h3 className="text-lg font-bold mb-4">
+                            Select Location
+                        </h3>
+                        <button
+                            className="mb-4 w-full px-4 py-3 bg-primary text-white rounded hover:bg-primary/80 text-base font-semibold"
+                            onClick={() => {
+                                if (navigator.geolocation) {
+                                    navigator.geolocation.getCurrentPosition(
+                                        (pos) => {
+                                            alert(
+                                                `Lat: ${pos.coords.latitude}, Lng: ${pos.coords.longitude}`
+                                            );
+                                        }
+                                    );
+                                }
+                            }}
+                        >
+                            Get location
+                        </button>
+                        <div className="flex items-center my-4">
+                            <div className="flex-grow border-t border-gray-700"></div>
+                            <span className="mx-3 text-gray-400 font-semibold">
+                                OR
+                            </span>
+                            <div className="flex-grow border-t border-gray-700"></div>
+                        </div>
+                        <div className="mb-4">
+                            <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-gray-700 bg-gray-800 text-white rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                                placeholder="Search city..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <button
+                                className="px-4 py-2 bg-gray-700 text-white rounded"
+                                onClick={() => setIsModalOpen(false)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="px-4 py-2 bg-primary text-white rounded"
+                                onClick={() => setIsModalOpen(false)}
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
