@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { FaCheckCircle } from "react-icons/fa";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
+import fetchFromApi from '../../../../utils/fetchFromApi';
 
 const prayers = [
     { name: "Fajr", defaultTime: "5:00 am" },
@@ -50,7 +51,7 @@ function EditJamatTimePage() {
     const fetchMasjidData = useCallback(async () => {
         try {
             console.log("Fetching masjid data for ID:", masjidId);
-            const res = await fetch(`/api/all-masjids/${masjidId}`);
+            const res = await fetchFromApi(`/api/all-masjids/${masjidId}`);
             console.log("Response status:", res.status);
             const data = await res.json();
             console.log("Response data:", data);
@@ -131,11 +132,7 @@ function EditJamatTimePage() {
                 juma: times[5],
             };
 
-            const res = await fetch(`/api/all-masjids`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
+            const res = await fetchFromApi(`/api/all-masjids`, 'PATCH', payload);
 
             const data = await res.json();
             if (!res.ok) {

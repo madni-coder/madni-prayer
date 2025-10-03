@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { MapPin } from "lucide-react";
 import { FaAngleLeft } from "react-icons/fa";
 import { useRouter } from "next/navigation";
+import fetchFromApi from '../../utils/fetchFromApi';
 
 function DigitalClock() {
     const [time, setTime] = useState(new Date());
@@ -96,7 +97,7 @@ export default function JamatTimesPage() {
     const fetchMasjids = async () => {
         try {
             setLoading(true);
-            const response = await fetch("/api/all-masjids");
+            const response = await fetchFromApi("/api/all-masjids");
             const result = await response.json();
 
             if (response.ok) {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { FaAngleLeft } from "react-icons/fa";
 import { useRouter } from "next/navigation";
+import fetchFromApi from '../../utils/fetchFromApi';
 
 export default function NoticeFeed() {
     const [images, setImages] = useState([]);
@@ -13,7 +14,7 @@ export default function NoticeFeed() {
     useEffect(() => {
         async function fetchImages() {
             try {
-                const res = await fetch("/api/api-notice");
+                const res = await fetchFromApi("/api/api-notice");
                 if (!res.ok) throw new Error(`Fetch error: ${res.status}`);
                 const data = await res.json();
                 setImages(data.images || []);

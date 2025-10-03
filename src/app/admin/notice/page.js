@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import SocialMediaImageUpload from "../../../components/SocialMediaImageUpload";
+import fetchFromApi from '../../../utils/fetchFromApi';
 
 export default function NoticeAdmin() {
     const [images, setImages] = useState([]);
@@ -11,7 +12,7 @@ export default function NoticeAdmin() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch("/api/api-notice");
+            const res = await fetchFromApi("/api/api-notice");
             if (!res.ok) {
                 const errBody = await res.json().catch(() => ({}));
                 throw new Error(errBody.error || res.statusText);

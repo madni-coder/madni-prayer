@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { RefreshCw, X, Pencil } from "lucide-react";
+import fetchFromApi from '../../../utils/fetchFromApi';
 
 export default function Page() {
     // Dynamic data state
@@ -20,7 +21,7 @@ export default function Page() {
         try {
             setError(null);
             setReloading(true);
-            const res = await fetch("/api/all-masjids", { cache: "no-store" });
+            const res = await fetchFromApi("/api/all-masjids");
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to load data");
             setMasjids(data.data || []);

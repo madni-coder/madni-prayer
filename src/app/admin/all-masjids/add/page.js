@@ -3,6 +3,7 @@ import { useState } from "react";
 import { FaCheckCircle } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus } from "lucide-react";
+import fetchFromApi from '../../../../utils/fetchFromApi';
 
 const prayers = [
     { name: "Fajr", defaultTime: "5:00 am" },
@@ -68,7 +69,7 @@ export default function AddMasjidPage() {
                 juma: times[5],
             };
 
-            const res = await fetch("/api/all-masjids", {
+            const res = await fetchFromApi("/api/all-masjids", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),

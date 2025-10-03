@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { FaBitcoin, FaMosque } from "react-icons/fa";
 import { useRouter } from "next/navigation";
+import fetchFromApi from '../../../utils/fetchFromApi';
 
 export default function DuroodSharifTable() {
     const router = useRouter();
@@ -10,7 +11,7 @@ export default function DuroodSharifTable() {
     useEffect(() => {
         async function fetchUsers() {
             try {
-                const res = await fetch("/api/api-tasbihUsers");
+                const res = await fetchFromApi("/api/api-tasbihUsers");
                 const json = await res.json();
                 if (json.ok) setUsers(json.data);
             } catch (e) {

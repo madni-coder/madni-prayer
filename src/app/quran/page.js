@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FaAngleLeft } from "react-icons/fa";
+import fetchFromApi from '../../utils/fetchFromApi';
 
 // Sample Surah data (in real app, fetch from API or static JSON)
 const surahs = [
@@ -67,7 +68,7 @@ const paras = paraNames.map((p, i) => ({
 // GET API function referencing route.js
 async function getPara() {
     try {
-        const res = await fetch("/api/api-quran", { method: "GET" });
+        const res = await fetchFromApi("/api/api-quran");
         if (!res.ok) throw new Error("Failed to fetch para files");
         const data = await res.json();
         // Return files array as in route.js

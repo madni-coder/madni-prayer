@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { FaPencilAlt, FaCheckCircle } from "react-icons/fa";
 import { X, RotateCcw } from "lucide-react";
+import fetchFromApi from '../../../utils/fetchFromApi';
 
 const prayers = [
     { name: "Fajr", defaultTime: "5:00 am" },
@@ -32,7 +33,7 @@ export default function JamatTimeTable() {
                 setLoading(true);
 
                 // Fetch masjids
-                const masjidsResponse = await fetch("/api/all-masjids");
+                const masjidsResponse = await fetchFromApi("/api/all-masjids");
                 if (masjidsResponse.ok) {
                     const masjidsData = await masjidsResponse.json();
                     setMasjids(masjidsData.data || []);
@@ -181,7 +182,7 @@ export default function JamatTimeTable() {
                 }
             });
 
-            const response = await fetch("/api/api-jamatTimes", {
+            const response = await fetchFromApi("/api/api-jamatTimes", {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",

@@ -1,6 +1,7 @@
 "use client";
 import React, { useRef, useState, useEffect } from "react";
 import { X } from "lucide-react";
+import fetchFromApi from '../utils/fetchFromApi';
 
 export default function UserModal({
     open = false,
@@ -15,7 +16,7 @@ export default function UserModal({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [visible, setVisible] = useState(open);
-    const [step, setStep] = useState("mobile"); // 'mobile', 'details', 'registered', 'submitted'
+    const [step, setStep] = useState("mobile");
     const [savedMobile, setSavedMobile] = useState("");
     const [mobileValue, setMobileValue] = useState("");
 
@@ -53,11 +54,7 @@ export default function UserModal({
                     tasbihCount: tasbihCount,
                 };
             }
-            const res = await fetch(`/api/api-tasbihUsers`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
+            const res = await fetchFromApi(`/api/api-tasbihUsers`, 'POST', payload);
             const data = await res.json();
             if (data.error === "NOT_REGISTERED") {
                 setStep("details");

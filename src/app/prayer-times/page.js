@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Bell, BellOff, Calendar, Moon, X } from "lucide-react";
 import { FaAngleLeft, FaMapMarkerAlt, FaClock } from "react-icons/fa";
 import { useRouter } from "next/navigation";
+import fetchFromApi from '../../utils/fetchFromApi';
 
 const initialPrayerTimes = [
     {
@@ -238,7 +239,7 @@ export default function PrayerTimesPage() {
                 const d = String(today.getDate()).padStart(2, "0");
                 const dateStr = `${y}-${m}-${d}`;
 
-                const res = await fetch(`/api/api-prayerTimes?date=${dateStr}`);
+                const res = await fetchFromApi(`/api/api-prayerTimes?date=${dateStr}`);
                 const json = await res.json();
 
                 if (!res.ok) {
@@ -368,7 +369,7 @@ export default function PrayerTimesPage() {
                     const m = String(today.getMonth() + 1).padStart(2, "0");
                     const d = String(today.getDate()).padStart(2, "0");
                     const dateStr = `${y}-${m}-${d}`;
-                    const res = await fetch(
+                    const res = await fetchFromApi(
                         `/api/api-prayerTimes?lat=${lat}&lon=${lon}&date=${dateStr}`
                     );
                     const json = await res.json();
@@ -454,7 +455,7 @@ export default function PrayerTimesPage() {
             const m = String(today.getMonth() + 1).padStart(2, "0");
             const d = String(today.getDate()).padStart(2, "0");
             const dateStr = `${y}-${m}-${d}`;
-            const res = await fetch(
+            const res = await fetchFromApi(
                 `/api/api-prayerTimes?lat=${lat}&lon=${lon}&date=${dateStr}`
             );
             const json = await res.json();
@@ -544,7 +545,7 @@ export default function PrayerTimesPage() {
                     headers: {
                         "Accept-Language": "en",
                         "User-Agent":
-                            "prayer-times-app/1.0 (+https://yourdomain.example)",
+                        "prayer-times-app/1.0 (+https://yourdomain.example)",
                     },
                 });
                 if (!res.ok) throw new Error("City search failed");

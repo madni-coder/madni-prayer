@@ -13,7 +13,7 @@ const navLinks = [
     { name: "Tasbih", href: "/tasbih" },
     { name: "Rewards", href: "/rewards" },
     { name: "Aelaan Naama", href: "/notice" },
-    { name: "Settings", href: "/settings" },
+    { name: "Settings", href: "/settings" }
 ];
 
 export default function TopNav() {

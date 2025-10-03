@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Upload, Trash2, Download } from "lucide-react";
+import fetchFromApi from '../utils/fetchFromApi';
 
 export default function SocialMediaImageUpload({ onUpload, onUploadComplete }) {
     const [images, setImages] = useState([]);
@@ -14,10 +15,7 @@ export default function SocialMediaImageUpload({ onUpload, onUploadComplete }) {
             formData.append("image", file);
             formData.append("imageName", file.name);
 
-            const response = await fetch("/api/api-notice", {
-                method: "POST",
-                body: formData,
-            });
+            const response = await fetchFromApi("/api/api-notice", 'POST', formData);
 
             if (!response.ok) {
                 const errorText = await response.text();
