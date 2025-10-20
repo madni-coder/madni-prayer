@@ -331,18 +331,24 @@ export default function JamatTimesPage() {
 
     const getMapUrl = () => {
         if (!selectedMasjidData) return "";
-        return (
+
+        // If there's a custom map URL, use it directly
+        const customUrl =
             selectedMasjidData.mapUrl ||
             selectedMasjidData.map_url ||
-            selectedMasjidData.map ||
-            encodeURI(
-                `https://www.google.com/maps/search/?api=1&query=${
-                    selectedMasjidData.masjidName
-                } ${selectedMasjidData.colony} ${
-                    selectedMasjidData.locality || ""
-                }`
-            )
-        );
+            selectedMasjidData.map;
+
+        if (customUrl) return customUrl;
+
+        // Build the search query
+        const query = `${selectedMasjidData.masjidName} ${
+            selectedMasjidData.colony
+        } ${selectedMasjidData.locality || ""}`.trim();
+
+        // Always return Google Maps URL that works on both web and mobile
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+            query
+        )}`;
     };
 
     const getJamatTimes = () => {
@@ -731,16 +737,40 @@ export default function JamatTimesPage() {
                             type="button"
                             onClick={() => {
                                 const url = getMapUrl();
-                                if (url) {
+                                if (!url) {
+                                    showToast(
+                                        "Map not available for this masjid.",
+                                        "error"
+                                    );
+                                    return;
+                                }
+
+                                // Check if mobile device
+                                const isMobile =
+                                    /iPhone|iPad|iPod|Android/i.test(
+                                        navigator.userAgent
+                                    );
+
+                                if (isMobile) {
+                                    // Show confirmation dialog for mobile
+                                    const userConfirmed = confirm(
+                                        `Do you want to open this location in Google Maps?\n\n${selectedMasjidData.masjidName}\n${selectedMasjidData.colony}`
+                                    );
+
+                                    if (userConfirmed) {
+                                        // Open in new window/tab which will trigger the Maps app on mobile
+                                        window.open(
+                                            url,
+                                            "_blank",
+                                            "noopener,noreferrer"
+                                        );
+                                    }
+                                } else {
+                                    // For desktop, just open directly
                                     window.open(
                                         url,
                                         "_blank",
                                         "noopener,noreferrer"
-                                    );
-                                } else {
-                                    showToast(
-                                        "Map not available for this masjid.",
-                                        "error"
                                     );
                                 }
                             }}
