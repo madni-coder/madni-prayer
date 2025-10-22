@@ -189,10 +189,7 @@ export default function SocialMediaImageUpload({ onUploadComplete }) {
                             {processing ? "Processing..." : "Select Image"}
                         </button>
                     </div>
-                    <p className="mt-2 text-sm text-gray-500">
-                        We will auto-convert to 9:16 portrait without cropping
-                        and fill side gaps with a blurred background.
-                    </p>
+                  
                     <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center gap-2">
                             <Smartphone className="h-4 w-4 text-green-600" />
