@@ -12,9 +12,9 @@ export default function PortraitRichEditor({ onImage }) {
     const [imgSrc, setImgSrc] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [imageSize, setImageSize] = useState("medium"); // default inserted image size
-    const [isTooLarge, setIsTooLarge] = useState(false);
     const [sizeError, setSizeError] = useState("");
     const [fontSize, setFontSize] = useState(18); // editor font size in px
+    const [isContentFull, setIsContentFull] = useState(false);
     const [activeFormats, setActiveFormats] = useState({
         bold: false,
         italic: false,
@@ -22,7 +22,7 @@ export default function PortraitRichEditor({ onImage }) {
         justifyCenter: false,
     });
 
-    const MIN_FONT = 12;
+    const MIN_FONT = 8;
     const MAX_FONT = 32;
     const STEP_FONT = 2;
 
@@ -36,13 +36,14 @@ export default function PortraitRichEditor({ onImage }) {
     ];
 
     function applyFormat(command, value = null) {
-        // Prevent insertion of large content while overflowed
-        if (isTooLarge && command === "insertHTML") {
+        // Block insertHTML when content is full
+        if (isContentFull && command === "insertHTML") {
             setSizeError(
-                "Content too large to insert more items. Remove some content first."
+                "Content limit reached. Remove some content to add more."
             );
             return;
         }
+
         document.execCommand(command, false, value);
         editorRef.current && editorRef.current.focus();
 
@@ -76,12 +77,13 @@ export default function PortraitRichEditor({ onImage }) {
 
     // Insert an <img> at the current caret / selection
     async function insertImageFromFile(file) {
-        if (isTooLarge) {
+        if (isContentFull) {
             setSizeError(
-                "Cannot insert image: content already exceeds available space. Remove some content first."
+                "Content limit reached. Remove some content before adding images."
             );
             return;
         }
+
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -119,7 +121,7 @@ export default function PortraitRichEditor({ onImage }) {
                         const last = imgs[imgs.length - 1];
                         // If it's a data URL image it'll load; attach onload to re-evaluate
                         last.onload = () => {
-                            checkContentSize();
+                            adjustFontSizeToFit();
                         };
                     }
 
@@ -135,7 +137,7 @@ export default function PortraitRichEditor({ onImage }) {
                             );
                             if (wrapper) {
                                 wrapper.remove();
-                                checkContentSize();
+                                adjustFontSizeToFit();
                                 updateActiveFormats();
                             }
                         };
@@ -144,7 +146,7 @@ export default function PortraitRichEditor({ onImage }) {
                     // ignore
                 }
                 // Re-check right away as well
-                checkContentSize();
+                adjustFontSizeToFit();
             }, 50);
         };
         reader.readAsDataURL(file);
@@ -203,12 +205,12 @@ export default function PortraitRichEditor({ onImage }) {
 
     useEffect(() => {
         // initial check and whenever images/sizes change
-        checkContentSize();
+        adjustFontSizeToFit();
         // also attach a resize observer to re-check if container size changes
         let ro;
         try {
             if (containerRef.current && window.ResizeObserver) {
-                ro = new ResizeObserver(() => checkContentSize());
+                ro = new ResizeObserver(() => adjustFontSizeToFit());
                 ro.observe(containerRef.current);
             }
         } catch (err) {
@@ -246,71 +248,128 @@ export default function PortraitRichEditor({ onImage }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [imgSrc, imageSize]);
 
-    // Re-evaluate content size when font size changes
-    useEffect(() => {
-        // delay slightly to allow layout to settle
-        const t = setTimeout(checkContentSize, 30);
-        return () => clearTimeout(t);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [fontSize]);
-
-    // Check whether the editable content overflows its visible height (would need scrollbar)
-    function checkContentSize() {
+    // Automatically adjust font size to fit content within container
+    function adjustFontSizeToFit() {
         try {
             const el = editorRef.current;
             if (!el) return;
-            const scrollH = el.scrollHeight;
-            const clientH = el.clientHeight;
-            if (scrollH > clientH + 1) {
-                setIsTooLarge(true);
-                setSizeError(
-                    "Content exceeds available space. Remove text or reduce image sizes."
-                );
-            } else {
-                if (isTooLarge) {
-                    setIsTooLarge(false);
-                    setSizeError("");
+
+            let currentSize = fontSize;
+
+            // First, try to increase font size if there's available space
+            let attempts = 0;
+            const maxAttempts = 100;
+
+            // Try increasing font size while content still fits
+            while (attempts < maxAttempts && currentSize < MAX_FONT) {
+                const testSize = currentSize + 0.5;
+                el.style.fontSize = testSize + "px";
+
+                const scrollH = el.scrollHeight;
+                const clientH = el.clientHeight;
+
+                if (scrollH > clientH) {
+                    // Content overflows at this size, revert to previous size
+                    el.style.fontSize = currentSize + "px";
+                    break;
+                } else {
+                    // Content fits, keep the larger size
+                    currentSize = testSize;
+                    attempts++;
                 }
             }
+
+            // Now reduce font size if content overflows
+            attempts = 0;
+            while (attempts < maxAttempts) {
+                const scrollH = el.scrollHeight;
+                const clientH = el.clientHeight;
+
+                // If content overflows even by 1px, reduce font size
+                if (scrollH > clientH) {
+                    if (currentSize <= MIN_FONT) {
+                        // Font is at minimum but still overflowing - mark as full
+                        setIsContentFull(true);
+                        setSizeError(
+                            "Content limit reached. Font cannot shrink further. Remove some content."
+                        );
+                        break;
+                    }
+                    currentSize -= 0.5;
+                    el.style.fontSize = currentSize + "px";
+                    attempts++;
+                } else {
+                    // Content fits perfectly
+                    setIsContentFull(false);
+                    setSizeError("");
+                    break;
+                }
+            }
+
+            // Update state if size changed significantly (round to nearest 0.5)
+            const roundedSize = Math.round(currentSize * 2) / 2;
+            if (Math.abs(roundedSize - fontSize) >= 0.5) {
+                setFontSize(roundedSize);
+                el.style.fontSize = roundedSize + "px";
+            }
         } catch (err) {
-            console.warn("checkContentSize error", err);
+            console.warn("adjustFontSizeToFit error", err);
         }
     }
 
-    // Prevent typing/inserting when content is too large, but allow deletion and navigation
+    // Prevent typing when content is full
     function handleKeyDown(e) {
-        if (!isTooLarge) {
-            // Update format states on key events that might change formatting
-            setTimeout(updateActiveFormats, 10);
-            return;
+        // Update format states on key events that might change formatting
+        setTimeout(updateActiveFormats, 10);
+
+        // Check if content is full and user is trying to add more
+        if (isContentFull) {
+            const allowedKeys = [
+                "Backspace",
+                "Delete",
+                "ArrowLeft",
+                "ArrowRight",
+                "ArrowUp",
+                "ArrowDown",
+                "Home",
+                "End",
+                "Tab",
+            ];
+
+            // Allow Ctrl/Meta shortcuts
+            if (e.ctrlKey || e.metaKey) {
+                // Allow copy, cut, select all
+                if (["c", "x", "a"].includes(e.key.toLowerCase())) {
+                    return;
+                }
+            }
+
+            // Block keys that would add content
+            if (!allowedKeys.includes(e.key)) {
+                e.preventDefault();
+                setSizeError(
+                    "Content limit reached. Delete some content to continue typing."
+                );
+                return;
+            }
         }
-        const allowed = [
-            "Backspace",
-            "Delete",
-            "ArrowLeft",
-            "ArrowRight",
-            "ArrowUp",
-            "ArrowDown",
-            "Home",
-            "End",
-        ];
-        // Allow Ctrl/Meta combos (copy/paste) for navigation and deletion
-        if (e.ctrlKey || e.metaKey) return;
-        if (!allowed.includes(e.key)) {
-            e.preventDefault();
-            setSizeError(
-                "Content is too large — remove content or reduce images before adding more."
-            );
-        }
+
+        // Adjust font size after key press
+        setTimeout(adjustFontSizeToFit, 50);
     }
 
     function handlePaste(e) {
-        if (isTooLarge) {
+        // Block paste if content is full
+        if (isContentFull) {
             e.preventDefault();
             setSizeError(
-                "Cannot paste: content already exceeds available space. Remove some content first."
+                "Content limit reached. Remove some content before pasting."
             );
+            return;
         }
+
+        // Allow paste, then adjust font size
+        setTimeout(adjustFontSizeToFit, 100);
     }
 
     async function handleSubmit() {
@@ -321,7 +380,7 @@ export default function PortraitRichEditor({ onImage }) {
             const style = {
                 background: bg,
                 width: "360px",
-                height: "480px",
+                height: "640px",
             };
 
             const node = containerRef.current;
@@ -330,7 +389,7 @@ export default function PortraitRichEditor({ onImage }) {
             const dataUrl = await (async function nodeToPng(
                 el,
                 width = 360,
-                height = 480
+                height = 640
             ) {
                 // Clone element so we don't mutate original
                 const cloned = el.cloneNode(true);
@@ -514,18 +573,26 @@ export default function PortraitRichEditor({ onImage }) {
 
                 {/* Font size controls */}
                 <div className="toolbar-section">
-                    <div className="toolbar-label">Font Size</div>
+                    <div className="toolbar-label">
+                        Font Size (Auto-adjusts)
+                    </div>
                     <div className="toolbar-group font-size-group">
                         <button
                             type="button"
                             title="Decrease font size"
                             aria-label="Decrease font size"
                             className="toolbar-btn"
-                            onClick={() =>
-                                setFontSize((s) =>
-                                    Math.max(MIN_FONT, s - STEP_FONT)
-                                )
-                            }
+                            onClick={() => {
+                                const newSize = Math.max(
+                                    MIN_FONT,
+                                    fontSize - STEP_FONT
+                                );
+                                setFontSize(newSize);
+                                if (editorRef.current) {
+                                    editorRef.current.style.fontSize =
+                                        newSize + "px";
+                                }
+                            }}
                             disabled={fontSize <= MIN_FONT}
                         >
                             <span className="btn-text">A-</span>
@@ -536,11 +603,18 @@ export default function PortraitRichEditor({ onImage }) {
                             title="Increase font size"
                             aria-label="Increase font size"
                             className="toolbar-btn"
-                            onClick={() =>
-                                setFontSize((s) =>
-                                    Math.min(MAX_FONT, s + STEP_FONT)
-                                )
-                            }
+                            onClick={() => {
+                                const newSize = Math.min(
+                                    MAX_FONT,
+                                    fontSize + STEP_FONT
+                                );
+                                setFontSize(newSize);
+                                if (editorRef.current) {
+                                    editorRef.current.style.fontSize =
+                                        newSize + "px";
+                                }
+                                setTimeout(adjustFontSizeToFit, 50);
+                            }}
                             disabled={fontSize >= MAX_FONT}
                         >
                             <span className="btn-text">A+</span>
@@ -639,15 +713,32 @@ export default function PortraitRichEditor({ onImage }) {
                     role="alert"
                     aria-live="assertive"
                     style={{
-                        background: "#fee2e2",
-                        color: "#b91c1c",
-                        border: "1px solid #fca5a5",
+                        background: isContentFull ? "#fee2e2" : "#fef3c7",
+                        color: isContentFull ? "#b91c1c" : "#92400e",
+                        border: `1px solid ${
+                            isContentFull ? "#fca5a5" : "#fcd34d"
+                        }`,
                         padding: "8px 12px",
                         borderRadius: 8,
                         marginBottom: 12,
+                        fontWeight: 500,
                     }}
                 >
                     {sizeError}
+                </div>
+            ) : fontSize <= MIN_FONT + 2 ? (
+                <div
+                    style={{
+                        background: "#fef3c7",
+                        color: "#92400e",
+                        border: "1px solid #fcd34d",
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        marginBottom: 12,
+                        fontWeight: 500,
+                    }}
+                >
+                    ⚠️ Nearing content limit - font size is very small
                 </div>
             ) : null}
 
@@ -655,7 +746,7 @@ export default function PortraitRichEditor({ onImage }) {
                 ref={containerRef}
                 style={{
                     width: 360,
-                    height: 480,
+                    height: 640,
                     border: "1px solid #e5e7eb",
                     borderRadius: 12,
                     overflow: "hidden",
@@ -669,7 +760,7 @@ export default function PortraitRichEditor({ onImage }) {
                     contentEditable
                     suppressContentEditableWarning
                     onInput={() => {
-                        checkContentSize();
+                        adjustFontSizeToFit();
                         updateActiveFormats();
                     }}
                     onKeyDown={handleKeyDown}
@@ -677,7 +768,7 @@ export default function PortraitRichEditor({ onImage }) {
                     onMouseUp={updateActiveFormats}
                     onKeyUp={updateActiveFormats}
                     style={{
-                        padding: 55,
+                        padding: "20px 40px",
                         width: "100%",
                         height: "100%",
                         outline: "none",
@@ -685,7 +776,7 @@ export default function PortraitRichEditor({ onImage }) {
                         fontFamily:
                             "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
                         fontSize: fontSize,
-                        overflow: "auto",
+                        overflow: "hidden",
                         WebkitTextSizeAdjust: "none",
                         boxSizing: "border-box",
                         background: "transparent",
@@ -1035,11 +1126,11 @@ export default function PortraitRichEditor({ onImage }) {
             <button
                 onClick={handleSubmit}
                 className="submit-btn"
-                disabled={isLoading || isTooLarge}
+                disabled={isLoading || isContentFull}
             >
                 <span className="btn-text">
-                    {isTooLarge
-                        ? "Cannot upload: content too large"
+                    {isContentFull
+                        ? "Remove content to upload"
                         : isLoading
                         ? "Rendering..."
                         : "Upload this Content"}
