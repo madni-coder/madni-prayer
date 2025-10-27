@@ -239,6 +239,11 @@ export default function JamatTimesPage() {
         setFilteredMasjids([]);
         setMasjidSuggestionsVisible(false);
         setMasjidHighlight(-1);
+        // Clear colony as well
+        setSelectedColony("");
+        setFilteredColonies([]);
+        setColonySuggestionsVisible(false);
+        setColonyHighlight(-1);
     };
     const clearColony = (e) => {
         e.preventDefault();
@@ -246,6 +251,12 @@ export default function JamatTimesPage() {
         setFilteredColonies([]);
         setColonySuggestionsVisible(false);
         setColonyHighlight(-1);
+        // Clear masjid as well
+        setSelectedMasjid("");
+        setSelectedMasjidData(null);
+        setFilteredMasjids([]);
+        setMasjidSuggestionsVisible(false);
+        setMasjidHighlight(-1);
     };
 
     const colonies = [
@@ -349,39 +360,64 @@ export default function JamatTimesPage() {
             const isTauri = process.env.NEXT_PUBLIC_TAURI_BUILD;
 
             if (isTauri) {
-                const { openUrl } = await import("@tauri-apps/plugin-opener");
+                // Use a runtime dynamic import wrapper to avoid bundlers trying to resolve
+                // optional Tauri packages during web builds (which causes Module not found).
+                const dynamicImport = (path) =>
+                    new Function("p", "return import(p)")(path);
+
+                let openUrl;
+                try {
+                    const opener = await dynamicImport(
+                        "@tauri-apps/plugin-opener"
+                    );
+                    openUrl = opener.openUrl;
+                } catch (err) {
+                    // opener not available — fall back to web open later
+                    openUrl = null;
+                }
+
                 let isiOS = false;
                 let isAndroid = false;
                 try {
-                    const os = await import("@tauri-apps/plugin-os");
+                    const os = await dynamicImport("@tauri-apps/plugin-os");
                     const platform = await os.platform();
                     isiOS = platform === "ios";
                     isAndroid = platform === "android";
-                } catch (_) {}
-
-                if (isiOS) {
-                    const iosGmaps = `comgooglemaps://?q=${placeQuery}`;
-                    try {
-                        await openUrl(iosGmaps);
-                        return;
-                    } catch (_) {
-                        // Fall through to HTTPS
-                    }
-                } else if (isAndroid) {
-                    const androidGeo = `geo:0,0?q=${placeQuery}`;
-                    try {
-                        await openUrl(androidGeo);
-                        return;
-                    } catch (_) {
-                        try {
-                            await openUrl(`google.navigation:q=${placeQuery}`);
-                            return;
-                        } catch (_) {}
-                    }
+                } catch (_) {
+                    // plugin-os unavailable — ignore and fall back to generic behavior
                 }
 
-                await openUrl(httpUrl);
-                return;
+                if (openUrl) {
+                    if (isiOS) {
+                        const iosGmaps = `comgooglemaps://?q=${placeQuery}`;
+                        try {
+                            await openUrl(iosGmaps);
+                            return;
+                        } catch (_) {
+                            // Fall through to HTTPS
+                        }
+                    } else if (isAndroid) {
+                        const androidGeo = `geo:0,0?q=${placeQuery}`;
+                        try {
+                            await openUrl(androidGeo);
+                            return;
+                        } catch (_) {
+                            try {
+                                await openUrl(
+                                    `google.navigation:q=${placeQuery}`
+                                );
+                                return;
+                            } catch (_) {}
+                        }
+                    }
+
+                    try {
+                        await openUrl(httpUrl);
+                        return;
+                    } catch (_) {
+                        // fall back to window.open below
+                    }
+                }
             }
 
             window.open(httpUrl, "_blank", "noopener,noreferrer");
@@ -472,8 +508,8 @@ export default function JamatTimesPage() {
 
             <div className="bg-white backdrop-blur-sm p-3 md:p-4 rounded-lg shadow-sm max-w-2xl mx-4 sm:mx-auto">
                 <h2 className="text-base md:text-lg font-extrabold text-primary text-center leading-tight">
-                    Currently this app shows Jama'at Times of Bilaspur Dist (C.G)
-                    Only
+                    Currently this app shows Jama&apos;t Times of Bilaspur Dist
+                    (C.G) Only
                 </h2>
             </div>
 
@@ -516,7 +552,7 @@ export default function JamatTimesPage() {
                         <h3 className="text-lg font-bold text-primary mb-3 flex items-center gap-2">
                             🕌 Search By Masjid Name
                         </h3>
-                        <div className="relative">
+                        <div className="relative group">
                             <input
                                 className="input input-primary input-lg w-full pr-10"
                                 value={selectedMasjid}
@@ -544,7 +580,7 @@ export default function JamatTimesPage() {
                                     type="button"
                                     onMouseDown={(ev) => ev.preventDefault()}
                                     onClick={clearMasjid}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 transform text-primary bg-primary/10 hover:bg-primary/20 rounded-full p-1 z-50"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 transform text-primary bg-primary/10 hover:bg-primary/20 rounded-full p-1 z-60 opacity-0 pointer-events-none transition-opacity duration-150 ease-in-out group-hover:opacity-100 group-focus-within:opacity-100 group-hover:pointer-events-auto group-focus-within:pointer-events-auto"
                                     aria-label="Clear masjid"
                                 >
                                     <FaTimes className="w-4 h-4" />
@@ -609,7 +645,7 @@ export default function JamatTimesPage() {
                         <h3 className="text-lg font-bold text-primary mb-3 flex items-center gap-2">
                             🏘️ Search By Colony Name
                         </h3>
-                        <div className="relative">
+                        <div className="relative group">
                             <input
                                 className="input input-primary input-lg w-full pr-10"
                                 value={selectedColony}
@@ -638,7 +674,7 @@ export default function JamatTimesPage() {
                                     type="button"
                                     onMouseDown={(ev) => ev.preventDefault()}
                                     onClick={clearColony}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 transform text-primary bg-primary/10 hover:bg-primary/20 rounded-full p-1 z-50"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 transform text-primary bg-primary/10 hover:bg-primary/20 rounded-full p-1 z-60 opacity-0 pointer-events-none transition-opacity duration-150 ease-in-out group-hover:opacity-100 group-focus-within:opacity-100 group-hover:pointer-events-auto group-focus-within:pointer-events-auto"
                                     aria-label="Clear colony"
                                 >
                                     <FaTimes className="w-4 h-4" />
@@ -681,7 +717,7 @@ export default function JamatTimesPage() {
                 </div>
 
                 <h1 className="text-2xl font-bold mb-2 text-center">
-                    Jama'at Time In
+                    Jama&apos;t Time In
                 </h1>
 
                 {selectedMasjidData && (
@@ -723,7 +759,7 @@ export default function JamatTimesPage() {
                                     />
                                 </div>
                                 <h3 className="text-2xl font-semibold text-center mb-3 text-primary">
-                                    Select A Masjid To View Jama'at Time
+                                    Select A Masjid To View Jama&apos;t Time
                                 </h3>
                             </div>
                         )}
@@ -738,6 +774,8 @@ export default function JamatTimesPage() {
                                 ? ""
                                 : "Save this masjid details permanently to view Jama'at times"}
                         </p>
+
+                        {/* Save button (fixed: closed properly, removed stray ternary) */}
                         <button
                             type="button"
                             onClick={saveMasjidToLocalStorage}
@@ -747,7 +785,7 @@ export default function JamatTimesPage() {
                                 savedMasjid?.colony ===
                                     selectedMasjidData.colony
                             }
-                            className={`group relative inline-flex items-center gap-3 px-3 py-2 rounded-xl font-bold text-lg shadow-lg transition-all duration-300 transform overflow-hidden ${
+                            className={`group relative inline-flex items-center gap-3 px-6 py-3 rounded-xl font-bold text-lg shadow-lg transition-all duration-300 transform overflow-hidden ${
                                 savedMasjid?.masjidName ===
                                     selectedMasjidData.masjidName &&
                                 savedMasjid?.colony ===
@@ -757,6 +795,7 @@ export default function JamatTimesPage() {
                             }`}
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+
                             {savedMasjid?.masjidName ===
                                 selectedMasjidData.masjidName &&
                             savedMasjid?.colony ===
@@ -765,60 +804,44 @@ export default function JamatTimesPage() {
                             ) : (
                                 <Save className="w-6 h-6 relative z-10 group-hover:rotate-12 transition-transform duration-300" />
                             )}
+
                             <span className="relative z-10">
                                 {savedMasjid?.masjidName ===
                                     selectedMasjidData.masjidName &&
                                 savedMasjid?.colony ===
                                     selectedMasjidData.colony
                                     ? "Already Saved"
-                                    : "Save This Masjid"}
+                                    : "Save Masjid"}
                             </span>
                         </button>
-                    </div>
-                )}
-                {selectedMasjidData && (
-                    <div className="mt-4 mb-8 text-center">
-                        <button
-                            type="button"
-                            onClick={handleLink}
-                            className="inline-flex items-center gap-2 px-4 py-3 rounded-md bg-primary/20 hover:bg-primary/30 text-primary transition font-semibold"
-                        >
-                            <MapPin className="w-5 h-5" />
-                            <span>See This Masjid Location On Map</span>
-                        </button>
-                    </div>
-                )}
 
-                {/* Toast Notification */}
-                {showNotification && (
-                    <div
-                        className={`fixed bottom-18 right-4 z-[9999] max-w-md animate-slide-in-bottom ${
-                            notificationType === "success"
-                                ? "bg-green-500"
-                                : "bg-red-500"
-                        } text-white px-6 py-4 rounded-lg shadow-2xl flex items-start gap-3 border-2 border-white/20`}
-                        style={{
-                            animation: "slideInBottom 0.3s ease-out",
-                        }}
-                    >
-                        <div className="flex-shrink-0 mt-0.5">
-                            {notificationType === "success" ? (
-                                <Check className="w-6 h-6" />
-                            ) : (
-                                <FaTimes className="w-6 h-6" />
-                            )}
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-sm font-medium leading-relaxed">
-                                {notificationMessage}
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => setShowNotification(false)}
-                            className="flex-shrink-0 ml-2 hover:bg-white/20 rounded-full p-1 transition"
-                        >
-                            <FaTimes className="w-4 h-4" />
-                        </button>
+                        {showNotification && (
+                            <div
+                                className="mt-6 mb-8 text-center"
+                                style={{
+                                    animation: "slideInBottom 0.3s ease-out",
+                                }}
+                            >
+                                <div className="flex-shrink-0 mt-0.5">
+                                    {notificationType === "success" ? (
+                                        <Check className="w-6 h-6" />
+                                    ) : (
+                                        <FaTimes className="w-6 h-6" />
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium leading-relaxed">
+                                        {notificationMessage}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setShowNotification(false)}
+                                    className="flex-shrink-0 ml-2 hover:bg-white/20 rounded-full p-1 transition"
+                                >
+                                    <FaTimes className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
