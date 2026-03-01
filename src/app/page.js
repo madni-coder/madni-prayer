@@ -30,92 +30,86 @@ const sections = [
     {
         name: "Jama'at Times",
         href: "/jamat-times",
-        icon: <FaPeopleArrows className="text-2xl lg:text-5xl text-pink-500" />,
+        icon: <FaPeopleArrows className="text-4xl lg:text-5xl text-pink-500 drop-shadow-[0_0_15px_rgba(236,72,153,0.5)]" />,
     },
     {
         name: "Prayer Times",
         href: "/prayer-times",
-        icon: <FaClock className="text-2xl lg:text-5xl text-yellow-500" />,
+        icon: <FaClock className="text-4xl lg:text-5xl text-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />,
     },
     {
         name: "Qibla Finder",
         href: "/qibla",
-        icon: <FaRegCompass className="text-2xl lg:text-5xl text-blue-400" />,
+        icon: <FaRegCompass className="text-4xl lg:text-5xl text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.5)]" />,
     },
     {
         name: "Quran",
         href: "/quran",
-        icon: <FaQuran className="text-2xl lg:text-5xl text-green-400" />,
+        icon: <FaQuran className="text-4xl lg:text-5xl text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />,
     },
-
-
     {
         name: "Tasbih Counter",
         href: "/tasbih",
-        icon: <TasbihSvgIcon className="w-12 h-12 lg:w-24 lg:h-24" />,
+        icon: <div className="drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"><TasbihSvgIcon className="w-12 h-12 lg:w-16 lg:h-16" /></div>,
     },
     {
         name: "Zikr",
         href: "/zikr",
         icon: (
-            <img src="/iconZikr.png" alt="Zikr" className="w-10 h-10 object-contain bg-white rounded-full p-0.5" />
+            <img src="/iconZikr.png" alt="Zikr" className="w-12 h-12 lg:w-14 lg:h-14 object-contain bg-white rounded-full p-1 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
         ),
     },
     {
         name: "Rewards",
         href: "/rewards",
-        icon: <FaGift className="text-2xl lg:text-5xl text-pink-500" />,
+        icon: <FaGift className="text-4xl lg:text-5xl text-pink-500 drop-shadow-[0_0_15px_rgba(236,72,153,0.5)]" />,
     },
     {
         name: "Aelaan Naama",
         href: "/notice",
-        icon: <Megaphone className="text-3xl lg:text-6xl text-blue-400" />,
+        icon: <Megaphone className="text-4xl lg:text-5xl text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.5)]" />,
     },
-
-
-
-
     {
         name: "Olmaa's Stores",
         href: "/local-stores",
         icon: (
-            <FaStore className="text-3xl lg:text-6xl text-emerald-400" />
+            <FaStore className="text-4xl lg:text-5xl text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]" />
         ),
     },
     {
         name: "Job Portal",
         href: "/jobPortal/jobLists",
         icon: (
-            <FaBriefcase className="text-3xl lg:text-6xl text-purple-400" />
+            <FaBriefcase className="text-4xl lg:text-5xl text-purple-400 drop-shadow-[0_0_15px_rgba(192,132,252,0.5)]" />
         ),
     },
     {
         name: "Masjid Committee",
         href: "/committee",
         icon: (
-            <FaMosque className="text-3xl lg:text-6xl text-indigo-400" />
+            <FaMosque className="text-4xl lg:text-5xl text-indigo-400 drop-shadow-[0_0_15px_rgba(129,140,248,0.5)]" />
         ),
     },
     {
         name: "Contact Us",
         href: "/contactUs",
         icon: (
-            <FaRegIdBadge className="text-3xl lg:text-6xl text-yellow-400" />
+            <FaRegIdBadge className="text-4xl lg:text-5xl text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
         ),
     },
-    
+
     {
         name: "Privacy Policy",
         href: "/privacy",
         icon: (
-            <FaFileAlt className="text-3xl lg:text-6xl text-slate-400" />
+            <FaFileAlt className="text-4xl lg:text-5xl text-slate-400 drop-shadow-[0_0_15px_rgba(148,163,184,0.5)]" />
         ),
     },
     {
         name: "My Profile",
         href: "/myProfile",
         icon: (
-            <FaUser className="text-3xl lg:text-6xl text-cyan-500" />
+            <FaUser className="text-4xl lg:text-5xl text-cyan-500 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
         ),
     }
 ];
@@ -213,33 +207,57 @@ export default function Home() {
 
     return (
         <main
-            className="flex min-h-screen flex-col items-center justify-center bg-[#09152a] text-gray-200 p-4 sm:p-6 pb-24 sm:pb28"
+            className="flex min-h-screen flex-col items-center justify-start pt-12 sm:pt-20 bg-gradient-to-b from-[#060b14] via-[#0b172d] to-[#040812] text-gray-200 p-4 sm:p-6 pb-24 sm:pb-32 relative overflow-hidden"
             style={{
                 paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 2rem)",
             }}
         >
-            <header className="text-center mb-10 ">
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight">
-                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-green-500 to-teal-600">
-                        RAAH-E-HIDAYAT{" "}
-                    </span>{" "}
-                </h1>
-                <CardLink
-                    href="/ramzan"
-                    className="mt-2 text-lg sm:text-xl max-w-2xl mx-auto inline-block font-semibold px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-secondary text-white shadow-sm hover:shadow-md transform transition-all duration-200 hover:scale-105 cursor-pointer"
-                    onDelayedShow={setShowLoader}
-                >
-                    <span className="inline-flex items-center">
-                        Ramzan Special
+            {/* Background Abstract Glows */}
+            <div className="absolute top-0 left-0 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-emerald-600/10 rounded-full blur-[100px] pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
+
+            <header className="text-center mb-10 sm:mb-14 relative z-10 w-full max-w-4xl mx-auto">
+                <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight pb-2 drop-shadow-[0_8px_16px_rgba(0,0,0,0.8)]">
+                    <span className="bg-clip-text text-transparent bg-gradient-to-b from-green-300 via-emerald-400 to-teal-500">
+                        RAAH-E-HIDAYAT
                     </span>
-                </CardLink>
+                </h1>
+                <div className="mt-6 flex justify-center">
+                    <CardLink
+                        href="/ramzan"
+                        className="text-lg sm:text-xl font-bold px-8 py-3 sm:px-12 sm:py-4 rounded-full bg-gradient-to-b from-emerald-500 to-green-700 text-white 
+                        shadow-[0_10px_20px_rgba(16,185,129,0.4),inset_0_2px_0_rgba(255,255,255,0.3),inset_0_-4px_0_rgba(0,0,0,0.3)] 
+                        hover:shadow-[0_15px_30px_rgba(16,185,129,0.5),inset_0_2px_0_rgba(255,255,255,0.4),inset_0_-2px_0_rgba(0,0,0,0.2)] 
+                        hover:-translate-y-1 active:translate-y-1 active:shadow-[0_5px_10px_rgba(16,185,129,0.4),inset_0_2px_0_rgba(0,0,0,0.3)] 
+                        transform transition-all duration-300 border border-green-400/40 relative overflow-hidden group"
+                        onDelayedShow={setShowLoader}
+                    >
+                        <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] skew-x-[-30deg] group-hover:animate-[shimmer_1.5s_infinite]" />
+                        <span className="relative drop-shadow-md">Ramzan Special</span>
+                    </CardLink>
+                </div>
             </header>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-6xl ">
-                {sections.map((section) => {
+
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 w-full max-w-7xl relative z-10 px-0 sm:px-4">
+                {sections.map((section, idx) => {
                     const isNotice = section.href === "/notice";
+
+                    // Realistic 3D Interactive Card Classes
                     const baseClass =
-                        "group relative flex flex-col items-center justify-center gap-3 p-6 bg-[#243447] rounded-2xl shadow-lg border border-[#2d3f54] hover:shadow-xl transform transition-all duration-300 hover:scale-105 hover:bg-green-600 dark:hover:bg-green-700 active:bg-green-600 dark:active:bg-green-800 focus:bg-green-600 dark:focus:bg-green-800 min-h-[140px] aspect-square";
-                    const noticeHighlight = isNotice && unseenCount > 0 ? " ring-2 ring-offset-2 ring-yellow-400 border-yellow-300 shadow-xl" : "";
+                        "group relative flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 rounded-3xl " +
+                        "bg-gradient-to-b from-[#253648] to-[#162331] " +
+                        "border-t border-l border-[#40566e] border-b border-r border-[#0d151e] " +
+                        "shadow-[6px_6px_14px_rgba(0,0,0,0.6),-4px_-4px_10px_rgba(255,255,255,0.03)] " +
+                        "hover:shadow-[10px_10px_20px_rgba(0,0,0,0.7),-6px_-6px_14px_rgba(255,255,255,0.05),inset_0_2px_20px_rgba(255,255,255,0.02)] " +
+                        "active:shadow-[2px_2px_6px_rgba(0,0,0,0.8),inset_4px_4px_10px_rgba(0,0,0,0.5)] " +
+                        "transform transition-all duration-300 ease-[cubic-bezier(0.25,0.8,0.25,1)] " +
+                        "hover:-translate-y-2 hover:scale-[1.03] active:translate-y-1 active:scale-95 " +
+                        "h-[140px] sm:h-[180px] w-full overflow-hidden";
+
+                    const noticeHighlight = isNotice && unseenCount > 0
+                        ? " ring-2 ring-yellow-400/80 shadow-[0_0_20px_rgba(250,204,21,0.4)] border-yellow-500/50"
+                        : "";
+
                     return (
                         <CardLink
                             key={section.name}
@@ -247,27 +265,45 @@ export default function Home() {
                             className={baseClass + noticeHighlight}
                             onDelayedShow={setShowLoader}
                         >
-                            <div className="w-full h-full relative flex flex-col items-center justify-center">
-                                {isNotice && unseenCount > 0 && (
-                                    <div className="absolute top-[-20px] right-[-20px]">
-                                        <span className="badge badge-error text-l font-bold text-white py-1 px-2 animate-pulse shadow-sm">
-                                            {unseenCount > 3 ? "3+" : unseenCount}
-                                        </span>
-                                    </div>
-                                )}
+                            {/* Inner Glass Highlights Wrapper */}
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-3xl" style={{ backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(255,255,255,0.1) 0%, transparent 60%)' }} />
 
-                                <div className="flex-shrink-0 p-1 rounded-full bg-[#1e2f3f] mb-1">
+                            {/* Notification Badge */}
+                            {isNotice && unseenCount > 0 && (
+                                <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-30">
+                                    <span className="flex items-center justify-center bg-gradient-to-br from-red-500 to-red-700 text-white font-bold text-xs sm:text-sm py-1 px-2.5 rounded-full border-2 border-[#162331] shadow-[0_4px_8px_rgba(239,68,68,0.6)] animate-pulse">
+                                        {unseenCount > 3 ? "3+" : unseenCount}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Elevated Icon Container */}
+                            <div className="relative z-20 flex-shrink-0 p-3 sm:p-4 rounded-2xl bg-[#1a2533] shadow-[inset_2px_2px_5px_rgba(0,0,0,0.6),inset_-1px_-1px_3px_rgba(255,255,255,0.05),0_6px_12px_rgba(0,0,0,0.5)] transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.06),0_10px_20px_rgba(0,0,0,0.6)] flex items-center justify-center">
+                                <div className="transform transition-transform duration-300 group-hover:scale-110">
                                     {section.icon}
                                 </div>
-                                <h2 className="text-base font-semibold text-center text-white transition-colors">
-                                    {section.name}
-                                </h2>
                             </div>
+
+                            {/* Text */}
+                            <h2 className="relative z-20 text-xs sm:text-base font-bold text-center text-slate-300 group-hover:text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] transition-colors mt-1 px-1">
+                                {section.name}
+                            </h2>
                         </CardLink>
                     );
                 })}
             </div>
-            {showLoader && <AnimatedLooader message="Please wait..." />}
+
+            {showLoader && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#060b14]/80 backdrop-blur-sm transition-opacity">
+                    <AnimatedLooader message="Please wait..." />
+                </div>
+            )}
+
+            <style jsx global>{`
+                @keyframes shimmer {
+                    100% { transform: translateX(150%) skew-x-[-30deg]; }
+                }
+            `}</style>
         </main>
     );
 }
