@@ -31,21 +31,25 @@ const sections = [
         name: "Jama'at Times",
         href: "/jamat-times",
         icon: <FaPeopleArrows className="text-2xl lg:text-5xl text-pink-500" />,
+        borderColor: "border-pink-500",
     },
     {
         name: "Prayer Times",
         href: "/prayer-times",
         icon: <FaClock className="text-2xl lg:text-5xl text-yellow-500" />,
+        borderColor: "border-yellow-500",
     },
     {
         name: "Qibla Finder",
         href: "/qibla",
         icon: <FaRegCompass className="text-2xl lg:text-5xl text-blue-400" />,
+        borderColor: "border-blue-400",
     },
     {
         name: "Quran",
         href: "/quran",
         icon: <FaQuran className="text-2xl lg:text-5xl text-green-400" />,
+        borderColor: "border-green-400",
     },
 
 
@@ -53,6 +57,7 @@ const sections = [
         name: "Tasbih Counter",
         href: "/tasbih",
         icon: <TasbihSvgIcon className="w-12 h-12 lg:w-24 lg:h-24" />,
+        borderColor: "border-teal-400",
     },
     {
         name: "Zikr",
@@ -60,16 +65,19 @@ const sections = [
         icon: (
             <img src="/iconZikr.png" alt="Zikr" className="w-10 h-10 object-contain bg-white rounded-full p-0.5" />
         ),
+        borderColor: "border-white",
     },
     {
         name: "Rewards",
         href: "/rewards",
         icon: <FaGift className="text-2xl lg:text-5xl text-pink-500" />,
+        borderColor: "border-pink-500",
     },
     {
         name: "Aelaan Naama",
         href: "/notice",
         icon: <Megaphone className="text-3xl lg:text-6xl text-blue-400" />,
+        borderColor: "border-blue-400",
     },
 
 
@@ -81,6 +89,7 @@ const sections = [
         icon: (
             <FaStore className="text-3xl lg:text-6xl text-emerald-400" />
         ),
+        borderColor: "border-emerald-400",
     },
     {
         name: "Job Portal",
@@ -88,6 +97,7 @@ const sections = [
         icon: (
             <FaBriefcase className="text-3xl lg:text-6xl text-purple-400" />
         ),
+        borderColor: "border-purple-400",
     },
     {
         name: "Masjid Committee",
@@ -95,6 +105,7 @@ const sections = [
         icon: (
             <FaMosque className="text-3xl lg:text-6xl text-indigo-400" />
         ),
+        borderColor: "border-indigo-400",
     },
     {
         name: "Contact Us",
@@ -102,14 +113,16 @@ const sections = [
         icon: (
             <FaRegIdBadge className="text-3xl lg:text-6xl text-yellow-400" />
         ),
+        borderColor: "border-yellow-400",
     },
-    
+
     {
         name: "Privacy Policy",
         href: "/privacy",
         icon: (
             <FaFileAlt className="text-3xl lg:text-6xl text-slate-400" />
         ),
+        borderColor: "border-slate-400",
     },
     {
         name: "My Profile",
@@ -117,6 +130,7 @@ const sections = [
         icon: (
             <FaUser className="text-3xl lg:text-6xl text-cyan-500" />
         ),
+        borderColor: "border-cyan-500",
     }
 ];
 
@@ -238,13 +252,14 @@ export default function Home() {
                 {sections.map((section) => {
                     const isNotice = section.href === "/notice";
                     const baseClass =
-                        "group relative flex flex-col items-center justify-center gap-3 p-6 bg-[#243447] rounded-2xl shadow-lg border border-[#2d3f54] hover:shadow-xl transform transition-all duration-300 hover:scale-105 hover:bg-green-600 dark:hover:bg-green-700 active:bg-green-600 dark:active:bg-green-800 focus:bg-green-600 dark:focus:bg-green-800 min-h-[140px] aspect-square";
-                    const noticeHighlight = isNotice && unseenCount > 0 ? " ring-2 ring-offset-2 ring-yellow-400 border-yellow-300 shadow-xl" : "";
+                        "group relative flex flex-col items-center justify-center gap-3 p-6 bg-[#243447] rounded-2xl shadow-lg hover:shadow-xl transform transition-all duration-300 hover:scale-105 hover:bg-green-600 dark:hover:bg-green-700 active:bg-green-600 dark:active:bg-green-800 focus:bg-green-600 dark:focus:bg-green-800 min-h-[140px] aspect-square";
+                    const noticeHighlight = isNotice && unseenCount > 0 ? " ring-2 ring-offset-2 ring-yellow-400 shadow-xl" : "";
+                    const borderBottomClass = ` border-b-4 ${section.borderColor}`;
                     return (
                         <CardLink
                             key={section.name}
                             href={section.href}
-                            className={baseClass + noticeHighlight}
+                            className={baseClass + noticeHighlight + borderBottomClass}
                             onDelayedShow={setShowLoader}
                         >
                             <div className="w-full h-full relative flex flex-col items-center justify-center">
