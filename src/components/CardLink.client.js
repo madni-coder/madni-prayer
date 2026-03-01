@@ -3,7 +3,7 @@
 import React, { useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function CardLink({ href, children, onDelayedShow, delay = 800, className }) {
+export default function CardLink({ href, children, onDelayedShow, delay = 800, className, onTap, ...props }) {
     const router = useRouter();
     const timerRef = useRef();
 
@@ -132,6 +132,13 @@ export default function CardLink({ href, children, onDelayedShow, delay = 800, c
     const handleClick = async (e) => {
         e.preventDefault();
 
+        // call optional tap handler (used for vibration feedback)
+        try {
+            if (typeof onTap === "function") onTap(e);
+        } catch (err) {
+            // ignore
+        }
+
         // show a global overlay spinner so it remains visible during navigation
         createOverlay("Please wait...");
 
@@ -178,7 +185,7 @@ export default function CardLink({ href, children, onDelayedShow, delay = 800, c
     }, []);
 
     return (
-        <a href={href} onClick={handleClick} className={className}>
+        <a href={href} {...props} onClick={handleClick} className={className}>
             {children}
         </a>
     );

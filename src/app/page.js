@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import CardLink from "../components/CardLink.client";
 import AnimatedLooader from "../components/animatedLooader";
@@ -24,50 +24,57 @@ import { Megaphone, UsersRound } from "lucide-react";
 import Image from "next/image";
 import TasbihSvgIcon from "../components/TasbihSvgIcon";
 import apiClient from "../lib/apiClient";
-import { useEffect } from "react";
 
 const sections = [
     {
         name: "Jama'at Times",
         href: "/jamat-times",
         icon: <FaPeopleArrows className="text-4xl lg:text-5xl text-pink-500 drop-shadow-[0_0_15px_rgba(236,72,153,0.5)]" />,
+        accent: '#ec4899',
     },
     {
         name: "Prayer Times",
         href: "/prayer-times",
         icon: <FaClock className="text-4xl lg:text-5xl text-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />,
+        accent: '#f59e0b',
     },
     {
         name: "Qibla Finder",
         href: "/qibla",
         icon: <FaRegCompass className="text-4xl lg:text-5xl text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.5)]" />,
+        accent: '#60a5fa',
     },
     {
-        name: "Quran",
+        name: "Quran Sharif",
         href: "/quran",
         icon: <FaQuran className="text-4xl lg:text-5xl text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />,
+        accent: '#4ade80',
     },
     {
         name: "Tasbih Counter",
         href: "/tasbih",
         icon: <div className="drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"><TasbihSvgIcon className="w-12 h-12 lg:w-16 lg:h-16" /></div>,
+        accent: '#06b6d4',
     },
     {
         name: "Zikr",
         href: "/zikr",
         icon: (
-            <img src="/iconZikr.png" alt="Zikr" className="w-12 h-12 lg:w-14 lg:h-14 object-contain bg-white rounded-full p-1 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
+            <img src="/iconZikr.png" alt="Zikr" className="w-8 h-8 lg:w-14 lg:h-14 object-contain bg-white rounded-full p-1 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
         ),
+        accent: '#ffffff',
     },
     {
-        name: "Rewards",
+        name: "Weekly Rewards",
         href: "/rewards",
         icon: <FaGift className="text-4xl lg:text-5xl text-pink-500 drop-shadow-[0_0_15px_rgba(236,72,153,0.5)]" />,
+        accent: '#ec4899',
     },
     {
         name: "Aelaan Naama",
         href: "/notice",
         icon: <Megaphone className="text-4xl lg:text-5xl text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.5)]" />,
+        accent: '#60a5fa',
     },
     {
         name: "Olmaa's Stores",
@@ -75,6 +82,7 @@ const sections = [
         icon: (
             <FaStore className="text-4xl lg:text-5xl text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]" />
         ),
+        accent: '#34d399',
     },
     {
         name: "Job Portal",
@@ -82,6 +90,7 @@ const sections = [
         icon: (
             <FaBriefcase className="text-4xl lg:text-5xl text-purple-400 drop-shadow-[0_0_15px_rgba(192,132,252,0.5)]" />
         ),
+        accent: '#c084fc',
     },
     {
         name: "Masjid Committee",
@@ -89,6 +98,7 @@ const sections = [
         icon: (
             <FaMosque className="text-4xl lg:text-5xl text-indigo-400 drop-shadow-[0_0_15px_rgba(129,140,248,0.5)]" />
         ),
+        accent: '#818cf8',
     },
     {
         name: "Contact Us",
@@ -96,6 +106,7 @@ const sections = [
         icon: (
             <FaRegIdBadge className="text-4xl lg:text-5xl text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
         ),
+        accent: '#f59e0b',
     },
 
     {
@@ -104,6 +115,7 @@ const sections = [
         icon: (
             <FaFileAlt className="text-4xl lg:text-5xl text-slate-400 drop-shadow-[0_0_15px_rgba(148,163,184,0.5)]" />
         ),
+        accent: '#94a3b8',
     },
     {
         name: "My Profile",
@@ -111,6 +123,7 @@ const sections = [
         icon: (
             <FaUser className="text-4xl lg:text-5xl text-cyan-500 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
         ),
+        accent: '#06b6d4',
     }
 ];
 
@@ -151,7 +164,7 @@ export default function Home() {
 
         function computeUnseen(total) {
             const lastSeen =
-                parseInt(localStorage.getItem("notice_last_seen_count") || "0", 10) || 0;
+                parseInt(localStorage.getItem("notice_last_seen_count") || "0", 15) || 0;
             return Math.max(0, total - lastSeen);
         }
 
@@ -205,40 +218,103 @@ export default function Home() {
         };
     }, []);
 
+    // Helper function to trigger low intensity vibration on mobile
+    // Tries multiple fallbacks: standard Vibration API, Tauri haptics plugin,
+    // and other common WebView bridges. Nothing is done if no API exists.
+    const triggerVibration = useCallback(async () => {
+        if (typeof window === "undefined") return;
+
+        try {
+            // 1) Tauri Haptics Plugin - For Tauri mobile apps (iOS & Android)
+            if (window.__TAURI_INTERNALS__) {
+                try {
+                    const { vibrate, ImpactStyle } = await import('@tauri-apps/plugin-haptics');
+                    await vibrate(ImpactStyle.Light);
+                    return;
+                } catch (e) {
+                    console.debug('Tauri haptics not available:', e);
+                }
+            }
+
+            // 2) Standard web Vibration API
+            if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+                navigator.vibrate(15);
+                return;
+            }
+
+            // 3) React Native WebView bridge
+            if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === "function") {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: "vibrate", duration: 15 }));
+                return;
+            }
+
+            // 4) Android/JavascriptInterface
+            if (window.Android && typeof window.Android.vibrate === "function") {
+                window.Android.vibrate(15);
+                return;
+            }
+            if (window.android && typeof window.android.vibrate === "function") {
+                window.android.vibrate(15);
+                return;
+            }
+
+            // 5) WKWebView iOS message handler
+            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.vibrate) {
+                window.webkit.messageHandlers.vibrate.postMessage({ duration: 15 });
+                return;
+            }
+        } catch (err) {
+            // swallow errors — vibration is non-essential
+            // eslint-disable-next-line no-console
+            console.warn("triggerVibration error:", err);
+        }
+    }, []);
+
     return (
         <main
-            className="flex min-h-screen flex-col items-center justify-start pt-12 sm:pt-20 bg-gradient-to-b from-[#060b14] via-[#0b172d] to-[#040812] text-gray-200 p-4 sm:p-6 pb-24 sm:pb-32 relative overflow-hidden"
+            className=" flex min-h-screen flex-col items-center justify-start pt-12 sm:pt-20 bg-gradient-to-b from-[#060b14] via-[#0b172d] to-[#040812] text-gray-200 p-4 sm:p-6 pb-24 sm:pb-32 relative overflow-hidden"
             style={{
                 paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 2rem)",
             }}
         >
             {/* Background Abstract Glows */}
-            <div className="absolute top-0 left-0 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-emerald-600/10 rounded-full blur-[100px] pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
+            <div className="absolute top-0 left-0 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-emerald-600/15 rounded-full blur-[100px] pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-blue-600/15 rounded-full blur-[100px] pointer-events-none" />
 
-            <header className="text-center mb-10 sm:mb-14 relative z-10 w-full max-w-4xl mx-auto">
-                <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight pb-2 drop-shadow-[0_8px_16px_rgba(0,0,0,0.8)]">
-                    <span className="bg-clip-text text-transparent bg-gradient-to-b from-green-300 via-emerald-400 to-teal-500">
-                        RAAH-E-HIDAYAT
-                    </span>
-                </h1>
+            <header className=" text-center mb-15 sm:mb-14 relative z-15 w-full max-w-4xl mx-auto">
+                <div className="relative inline-flex flex-col items-center mt-[-30px]">
+                    {/* Glowing background blur */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-gradient-to-r from-emerald-500/50 via-teal-400/50 to-cyan-500/50 blur-[50px] rounded-full pointer-events-none animate-pulse" />
+
+                    <h1 className="relative w-full text-4xl whitespace-nowrap font-black tracking-tighter uppercase drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)] z-10 pb-2">
+                        <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-emerald-200 to-teal-600 drop-shadow-[0_0_15px_rgba(52,211,153,0.3)]">
+                            RAAH-E-HIDAYAT
+                        </span>
+                    </h1>
+
+                    {/* Glowing underline accent */}
+                    <div className="mt-[-2] sm:mt-4 h-[3px] w-32 sm:w-48 rounded-full bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_15px_rgba(52,211,153,0.8)] relative overflow-hidden">
+                        <div className="absolute inset-0 w-[50%] bg-white/60 -translate-x-[200%] skew-x-[-30deg] animate-[shimmer_2.5s_infinite]" />
+                    </div>
+                </div>
                 <div className="mt-6 flex justify-center">
                     <CardLink
                         href="/ramzan"
-                        className="text-lg sm:text-xl font-bold px-8 py-3 sm:px-12 sm:py-4 rounded-full bg-gradient-to-b from-emerald-500 to-green-700 text-white 
+                        className="mt-[-5] text-lg sm:text-xl font-bold px-8 py-3 sm:px-12 sm:py-4 rounded-full bg-gradient-to-b from-emerald-500 to-green-700 text-white 
                         shadow-[0_10px_20px_rgba(16,185,129,0.4),inset_0_2px_0_rgba(255,255,255,0.3),inset_0_-4px_0_rgba(0,0,0,0.3)] 
                         hover:shadow-[0_15px_30px_rgba(16,185,129,0.5),inset_0_2px_0_rgba(255,255,255,0.4),inset_0_-2px_0_rgba(0,0,0,0.2)] 
                         hover:-translate-y-1 active:translate-y-1 active:shadow-[0_5px_10px_rgba(16,185,129,0.4),inset_0_2px_0_rgba(0,0,0,0.3)] 
                         transform transition-all duration-300 border border-green-400/40 relative overflow-hidden group"
                         onDelayedShow={setShowLoader}
+                        onTap={triggerVibration}
                     >
-                        <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] skew-x-[-30deg] group-hover:animate-[shimmer_1.5s_infinite]" />
-                        <span className="relative drop-shadow-md">Ramzan Special</span>
+                        <span className=" absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] skew-x-[-30deg] group-hover:animate-[shimmer_1.5s_infinite]" />
+                        <span className="relative drop-shadow-md ">Ramzan Special</span>
                     </CardLink>
                 </div>
             </header>
 
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 w-full max-w-7xl relative z-10 px-0 sm:px-4">
+            <div className="mt-[-20] grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 w-full max-w-7xl relative z-15 px-0 sm:px-4">
                 {sections.map((section, idx) => {
                     const isNotice = section.href === "/notice";
 
@@ -264,6 +340,7 @@ export default function Home() {
                             href={section.href}
                             className={baseClass + noticeHighlight}
                             onDelayedShow={setShowLoader}
+                            onTap={triggerVibration}
                         >
                             {/* Inner Glass Highlights Wrapper */}
                             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-3xl" style={{ backgroundImage: 'radial-gradient(circle at 50% 0%, rgba(255,255,255,0.1) 0%, transparent 60%)' }} />
@@ -277,11 +354,32 @@ export default function Home() {
                                 </div>
                             )}
 
-                            {/* Elevated Icon Container */}
-                            <div className="relative z-20 flex-shrink-0 p-3 sm:p-4 rounded-2xl bg-[#1a2533] shadow-[inset_2px_2px_5px_rgba(0,0,0,0.6),inset_-1px_-1px_3px_rgba(255,255,255,0.05),0_6px_12px_rgba(0,0,0,0.5)] transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[inset_2px_2px_5px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.06),0_10px_20px_rgba(0,0,0,0.6)] flex items-center justify-center">
-                                <div className="transform transition-transform duration-300 group-hover:scale-110">
+                            {/* Elevated Icon Container (transparent glass) */}
+                            <div className="relative z-20 flex-shrink-0 p-4 sm:p-5 w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white/10 backdrop-blur-[14px] border border-white/[0.08] shadow-[inset_2px_2px_10px_rgba(0,0,0,0.5),inset_-1px_-1px_6px_rgba(255,255,255,0.08),0_12px_28px_rgba(0,0,0,0.65)] transition-all duration-300 group-hover:-translate-y-1 flex items-center justify-center overflow-hidden">
+                                {/* clear glass gradient with subtle reflections */}
+                                <div className="absolute inset-0 rounded-xl pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.01) 50%, rgba(0,0,0,0.15) 100%)' }} />
+                                {/* glass corner reflection */}
+                                <div className="absolute -top-6 -left-6 w-28 h-28 rounded-full opacity-12 pointer-events-none" style={{ background: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.2), rgba(255,255,255,0.05) 30%, transparent 55%)' }} />
+                                {/* glass highlight bar */}
+                                <div className="absolute top-1.5 left-3 right-3 h-0.5 rounded-full opacity-20 bg-white/80 blur-[2px] pointer-events-none" />
+
+                                <div className="relative z-10 transform transition-transform duration-300 group-hover:scale-110">
                                     {section.icon}
                                 </div>
+
+                                {section.accent && (
+                                    <div className="absolute inset-0 flex items-end justify-center pointer-events-none">
+                                        <div
+                                            className="rounded-full h-[3px] w-16 sm:w-12 mb-2"
+                                            style={{
+                                                background: section.accent,
+                                                boxShadow: `0 6px 12px ${section.accent}22`,
+                                                opacity: 0.95,
+                                            }}
+                                        />
+                                    </div>
+                                )}
+
                             </div>
 
                             {/* Text */}
