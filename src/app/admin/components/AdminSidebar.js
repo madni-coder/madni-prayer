@@ -13,7 +13,8 @@ import {
     Gauge, Book, UsersRound,
     Wind,
     Briefcase,
-    UserCheck
+    UserCheck,
+    CalendarRange
 } from "lucide-react";
 
 const navigation = [
@@ -73,6 +74,11 @@ const navigation = [
         name: "Job Seekers",
         href: "/admin/job-seekers",
         icon: UserCheck,
+    },
+    {
+        name: "Events / Programs",
+        href: "/admin/events",
+        icon: CalendarRange,
     },
 ];
 

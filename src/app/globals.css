@@ -156,3 +156,25 @@ html[data-hide-navs="1"] [data-app-top-nav] {
         margin-top: calc(2.5rem * 0.6) !important;
     }
 }
+
+/* Default form control borders: make inputs white by default */
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="tel"],
+input[type="search"],
+textarea,
+select,
+input,
+textarea,
+select {
+    border-color: #ffffff !important;
+}
+
+/* Also ensure selects use a visible outline when focused (optional UX tweak) */
+select:focus,
+input:focus,
+textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.06);
+}

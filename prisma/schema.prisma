@@ -180,3 +180,29 @@ model JobSeeker {
   @@map("job_seekers")
 }
 
+model EventPage {
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title         String
+  slug          String             @unique
+  description   String?
+  themeColor    String?            @map("theme_color")
+  submitLabel   String?            @map("submit_label")
+  isActive      Boolean            @default(false) @map("is_active")
+  schemaFields  Json               @default("[]") @map("schema_fields")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @default(now()) @map("updated_at")
+  submissions   EventSubmission[]
+
+  @@map("event_pages")
+}
+
+model EventSubmission {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eventSlug     String      @map("event_slug")
+  submittedData Json        @map("submitted_data")
+  submittedAt   DateTime    @default(now()) @map("submitted_at")
+
+  eventPage     EventPage   @relation(fields: [eventSlug], references: [slug], onDelete: Cascade)
+
+  @@map("event_submissions")
+}

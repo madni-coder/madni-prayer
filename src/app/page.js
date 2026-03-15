@@ -20,7 +20,7 @@ import {
     FaMosque,
     FaFileAlt
 } from "react-icons/fa";
-import { Megaphone, UsersRound } from "lucide-react";
+import { Megaphone, UsersRound, CalendarRange } from "lucide-react";
 import Image from "next/image";
 import TasbihSvgIcon from "../components/TasbihSvgIcon";
 import AppTitle from "../components/AppTitle.client";
@@ -110,6 +110,14 @@ const sections = [
         accent: '#f59e0b',
     },
 
+    {
+        name: "Events & Programs",
+        href: "/events",
+        icon: (
+            <CalendarRange className="text-4xl lg:text-5xl text-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.5)]" />
+        ),
+        accent: '#f43f5e',
+    },
     {
         name: "Privacy Policy",
         href: "/privacy",
