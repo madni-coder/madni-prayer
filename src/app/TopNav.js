@@ -25,18 +25,18 @@ import TasbihSvgIcon from "../components/TasbihSvgIcon";
 
 const navLinks = [
     { name: "Home", href: "/", icon: <FaHome className="text-lg text-white" /> },
-    { name: "Ramzan Special", href: "/ramzan", icon: <FaStarAndCrescent className="text-lg text-emerald-400" /> },
     {
         name: "Jama'at Times",
         href: "/jamat-times",
         icon: <FaPeopleArrows className="text-lg text-pink-500" />,
     },
-    { name: "Quran", href: "/quran", icon: <FaQuran className="text-lg text-green-400" /> },
     {
         name: "Prayer Times",
         href: "/prayer-times",
         icon: <FaClock className="text-lg text-yellow-500" />,
     },
+    { name: "Quran", href: "/quran", icon: <FaQuran className="text-lg text-green-400" /> },
+   
     {
         name: "Qibla",
         href: "/qibla",

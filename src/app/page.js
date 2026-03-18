@@ -301,21 +301,7 @@ export default function Home() {
                         <div className="absolute inset-0 w-[50%] bg-white/60 -translate-x-[200%] skew-x-[-30deg] animate-[shimmer_2.5s_infinite]" />
                     </div>
                 </div>
-                <div className="mt-6 flex justify-center">
-                    <CardLink
-                        href="/ramzan"
-                        className="mt-[-5] text-lg sm:text-xl font-bold px-8 py-3 sm:px-12 sm:py-4 rounded-full bg-gradient-to-b from-emerald-500 to-green-700 text-white 
-                        shadow-[0_10px_20px_rgba(16,185,129,0.4),inset_0_2px_0_rgba(255,255,255,0.3),inset_0_-4px_0_rgba(0,0,0,0.3)] 
-                        hover:shadow-[0_15px_30px_rgba(16,185,129,0.5),inset_0_2px_0_rgba(255,255,255,0.4),inset_0_-2px_0_rgba(0,0,0,0.2)] 
-                        hover:-translate-y-1 active:translate-y-1 active:shadow-[0_5px_10px_rgba(16,185,129,0.4),inset_0_2px_0_rgba(0,0,0,0.3)] 
-                        transform transition-all duration-300 border border-green-400/40 relative overflow-hidden group"
-                        onDelayedShow={setShowLoader}
-                        onTap={triggerVibration}
-                    >
-                        <span className=" absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] skew-x-[-30deg] group-hover:animate-[shimmer_1.5s_infinite]" />
-                        <span className="relative drop-shadow-md ">Ramzan Special</span>
-                    </CardLink>
-                </div>
+               
             </header>
 
             <div className="mt-[-20] grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 w-full max-w-7xl relative z-15 px-0 sm:px-4">
