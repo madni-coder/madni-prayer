@@ -3,11 +3,12 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import QuranLoader from "../../components/QuranLoader";
 
-// Detect iOS devices
 const isIOS = () => {
-    if (typeof window === 'undefined') return false;
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (typeof window === "undefined") return false;
+    return (
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    );
 };
 
 export default function ClientPdfViewer({ file: fileProp, zoom = 1 }) {
@@ -17,7 +18,11 @@ export default function ClientPdfViewer({ file: fileProp, zoom = 1 }) {
     const paramTitle = searchParams ? searchParams.get("title") : null;
     const file = fileProp || paramFile || "";
     const isStandalone = !fileProp;
-    const title = paramTitle || (file ? file.split("/").pop().replace(/\.pdf$/i, "").replace(/[-_]/g, " ") : "PDF Viewer");
+    const title =
+        paramTitle ||
+        (file
+            ? file.split("/").pop().replace(/\.pdf$/i, "").replace(/[-_]/g, " ")
+            : "PDF Viewer");
 
     const [loading, setLoading] = useState(true);
     const [loadingProgress, setLoadingProgress] = useState(0);
@@ -28,31 +33,39 @@ export default function ClientPdfViewer({ file: fileProp, zoom = 1 }) {
     const [pages, setPages] = useState([]);
     const [pdfDoc, setPdfDoc] = useState(null);
     const [renderedPages, setRenderedPages] = useState(new Set());
+
     const observerRef = useRef(null);
     const pageRefsRef = useRef({});
     const renderedPagesRef = useRef(new Set());
+    const scrollContainerRef = useRef(null);
 
+    // Re-center horizontal scroll whenever zoom changes so
+    // the page stays in the middle, not shifted to the right.
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        const id = setTimeout(() => {
+            if (!scrollContainerRef.current) return;
+            const { scrollWidth, clientWidth } = scrollContainerRef.current;
+            if (scrollWidth > clientWidth) {
+                scrollContainerRef.current.scrollLeft = (scrollWidth - clientWidth) / 2;
+            }
+        }, 30); // wait one paint for layout to settle
+        return () => clearTimeout(id);
+    }, [zoom]);
+
+    // ── PDF URL setup ──────────────────────────────────────────────────────────
     useEffect(() => {
         setErr(null);
         setLoading(true);
         setLoadingProgress(0);
         setCurrentPage(0);
         setTotalPages(0);
-        if (!file) {
-            setUrl("");
-            setLoading(false);
-            return;
-        }
-        try {
-            const decoded = decodeURIComponent(file);
-            console.log("Setting PDF URL:", decoded);
-            setUrl(decoded);
-        } catch (e) {
-            console.log("Using file as-is (decode failed):", file);
-            setUrl(file);
-        }
+        if (!file) { setUrl(""); setLoading(false); return; }
+        try { setUrl(decodeURIComponent(file)); } catch { setUrl(file); }
     }, [file]);
 
+    // ── PDF loading & rendering ────────────────────────────────────────────────
     useEffect(() => {
         if (!url) return;
         let cancelled = false;
@@ -63,116 +76,71 @@ export default function ClientPdfViewer({ file: fileProp, zoom = 1 }) {
             setLoadingProgress(0);
             setPages([]);
             setRenderedPages(new Set());
+
             try {
-                console.log("Starting PDF load for URL:", url);
                 const pdfjsPath = "/pdfjs/pdf.min.mjs";
                 const workerPath = "/pdfjs/pdf.worker.min.mjs";
-
                 setLoadingProgress(10);
 
-                // Try to import PDF.js with better error handling
                 let pdfjsLib;
                 try {
-                    const pdfjsModule = await import(
-                        /* webpackIgnore: true */ pdfjsPath
-                    );
-                    pdfjsLib = pdfjsModule.default || pdfjsModule;
-                    console.log("PDF.js loaded successfully");
-                } catch (importError) {
-                    console.error("Failed to import PDF.js:", importError);
+                    const mod = await import(/* webpackIgnore: true */ pdfjsPath);
+                    pdfjsLib = mod.default || mod;
+                } catch {
                     throw new Error("Failed to load PDF library. Please try again.");
                 }
-
                 if (pdfjsLib.GlobalWorkerOptions) {
                     pdfjsLib.GlobalWorkerOptions.workerSrc = workerPath;
                 }
-
                 setLoadingProgress(30);
 
-                // Fetch PDF with better error handling
-                let arrayBuffer;
-                try {
-                    console.log("Fetching PDF from:", url);
-                    const resp = await fetch(url, {
-                        method: "GET",
-                        credentials: "same-origin",
-                        mode: "cors",
-                    });
-                    console.log("Fetch response status:", resp.status, resp.statusText);
-                    if (!resp.ok) {
-                        throw new Error(`Failed to fetch PDF: ${resp.status} ${resp.statusText}`);
-                    }
-                    arrayBuffer = await resp.arrayBuffer();
-                    console.log("PDF data loaded, size:", arrayBuffer.byteLength, "bytes");
-                } catch (fetchError) {
-                    console.error("Failed to fetch PDF:", fetchError);
-                    throw new Error(`Failed to load PDF file: ${fetchError.message}`);
-                }
-
+                const resp = await fetch(url, {
+                    method: "GET",
+                    credentials: "same-origin",
+                    mode: "cors",
+                });
+                if (!resp.ok)
+                    throw new Error(`Failed to fetch PDF: ${resp.status} ${resp.statusText}`);
+                const arrayBuffer = await resp.arrayBuffer();
                 setLoadingProgress(60);
 
-                // Load and render PDF
-                try {
-                    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-                    const pdf = await loadingTask.promise;
-                    if (cancelled) return;
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                if (cancelled) return;
 
-                    const totalPagesCount = pdf.numPages;
-                    console.log("PDF loaded successfully, total pages:", totalPagesCount);
-                    setTotalPages(totalPagesCount);
-                    setPdfDoc(pdf);
+                const totalPagesCount = pdf.numPages;
+                setTotalPages(totalPagesCount);
+                setPdfDoc(pdf);
 
-                    // Initialize placeholder pages for all PDFs
-                    const pageArray = new Array(totalPagesCount).fill(null);
-                    setPages(pageArray);
+                const pageArray = new Array(totalPagesCount).fill(null);
+                setPages(pageArray);
+                setLoadingProgress(100);
 
-                    setLoadingProgress(100);
-
-                    // Eagerly render the first few pages directly here
-                    const initialPagesToRender = Math.min(totalPagesCount, 3);
-                    console.log(`Rendering initial ${initialPagesToRender} pages...`);
-
-                    const newRenderedPages = new Set();
-                    for (let i = 1; i <= initialPagesToRender; i++) {
-                        try {
-                            const page = await pdf.getPage(i);
-                            const viewport = page.getViewport({ scale: 1.5 });
-                            const canvas = document.createElement("canvas");
-                            canvas.width = Math.floor(viewport.width);
-                            canvas.height = Math.floor(viewport.height);
-                            const ctx = canvas.getContext("2d");
-                            await page.render({ canvasContext: ctx, viewport }).promise;
-                            const dataUrl = canvas.toDataURL("image/png");
-                            pageArray[i - 1] = dataUrl;
-                            newRenderedPages.add(i);
-                            console.log(`Initial page ${i} rendered`);
-                        } catch (pageErr) {
-                            console.error(`Error rendering initial page ${i}:`, pageErr);
-                        }
+                const initialCount = Math.min(totalPagesCount, 3);
+                const newRendered = new Set();
+                for (let i = 1; i <= initialCount; i++) {
+                    try {
+                        const page = await pdf.getPage(i);
+                        const viewport = page.getViewport({ scale: 1.5 });
+                        const canvas = document.createElement("canvas");
+                        canvas.width = Math.floor(viewport.width);
+                        canvas.height = Math.floor(viewport.height);
+                        await page
+                            .render({ canvasContext: canvas.getContext("2d"), viewport })
+                            .promise;
+                        pageArray[i - 1] = canvas.toDataURL("image/png");
+                        newRendered.add(i);
+                    } catch (pe) {
+                        console.error(`Error rendering page ${i}:`, pe);
                     }
-
-                    // reset refs for the new document and update pages/rendered pages
-                    pageRefsRef.current = {};
-                    setPages([...pageArray]);
-                    setRenderedPages(newRenderedPages);
-                    renderedPagesRef.current = newRenderedPages;
-
-                    // set the current page to the first rendered page (if any)
-                    setCurrentPage(initialPagesToRender >= 1 ? 1 : 0);
-
-                } catch (renderError) {
-                    console.error("Failed to render PDF:", renderError);
-                    throw new Error(`Failed to render PDF: ${renderError.message}`);
                 }
 
+                pageRefsRef.current = {};
+                setPages([...pageArray]);
+                setRenderedPages(newRendered);
+                renderedPagesRef.current = newRendered;
+                setCurrentPage(initialCount >= 1 ? 1 : 0);
             } catch (e) {
                 console.error("PDF render error:", e);
-                console.error("PDF render error details:", {
-                    message: e.message,
-                    url: url,
-                    isIOS: isIOS(),
-                    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A'
-                });
                 setErr(e.message || String(e));
             } finally {
                 setLoading(false);
@@ -180,90 +148,66 @@ export default function ClientPdfViewer({ file: fileProp, zoom = 1 }) {
         }
 
         loadPdf();
-
-        return () => {
-            cancelled = true;
-        };
+        return () => { cancelled = true; };
     }, [url]);
 
-    // Lazy render pages for large PDFs
-    const renderPage = useCallback(async (pageNum) => {
-        if (!pdfDoc) {
-            console.log(`Cannot render page ${pageNum}: pdfDoc not loaded`);
-            return;
-        }
-        if (renderedPagesRef.current.has(pageNum)) {
-            console.log(`Page ${pageNum} already rendered, skipping`);
-            return;
-        }
+    // ── Lazy page rendering ────────────────────────────────────────────────────
+    const renderPage = useCallback(
+        async (pageNum) => {
+            if (!pdfDoc || renderedPagesRef.current.has(pageNum)) return;
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvas = document.createElement("canvas");
+                canvas.width = Math.floor(viewport.width);
+                canvas.height = Math.floor(viewport.height);
+                await page
+                    .render({ canvasContext: canvas.getContext("2d"), viewport })
+                    .promise;
+                const dataUrl = canvas.toDataURL("image/png");
+                setPages((prev) => {
+                    const n = [...prev];
+                    n[pageNum - 1] = dataUrl;
+                    return n;
+                });
+                setRenderedPages((prev) => {
+                    const next = new Set(prev);
+                    next.add(pageNum);
+                    renderedPagesRef.current = next;
+                    return next;
+                });
+            } catch (e) {
+                console.error(`Error rendering page ${pageNum}:`, e);
+            }
+        },
+        [pdfDoc]
+    );
 
-        console.log(`Rendering page ${pageNum}...`);
-        try {
-            const page = await pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 1.5 });
-            const canvas = document.createElement("canvas");
-            canvas.width = Math.floor(viewport.width);
-            canvas.height = Math.floor(viewport.height);
-            const ctx = canvas.getContext("2d");
-            await page.render({ canvasContext: ctx, viewport }).promise;
-
-            const dataUrl = canvas.toDataURL("image/png");
-            console.log(`Page ${pageNum} rendered successfully`);
-            setPages(prev => {
-                const newPages = [...prev];
-                newPages[pageNum - 1] = dataUrl;
-                return newPages;
-            });
-            setRenderedPages(prev => {
-                const next = new Set(prev);
-                next.add(pageNum);
-                renderedPagesRef.current = next;
-                return next;
-            });
-        } catch (e) {
-            console.error(`Error rendering page ${pageNum}:`, e);
-        }
-    }, [pdfDoc]);
-
-    // Intersection observer for lazy loading
+    // ── Intersection observer for lazy loading ─────────────────────────────────
     useEffect(() => {
         if (!pdfDoc) return;
-
         observerRef.current = new IntersectionObserver(
-            (entries) => {
-                entries.forEach(entry => {
-                    const pageNum = parseInt(entry.target.dataset.page);
-                    console.log(`Observer: page ${pageNum} intersecting=${entry.isIntersecting}`);
+            (entries) =>
+                entries.forEach((entry) => {
                     if (entry.isIntersecting) {
+                        const pageNum = parseInt(entry.target.dataset.page);
                         renderPage(pageNum);
-                        // update visible page indicator
                         setCurrentPage(pageNum);
                     }
-                });
-            },
-            { rootMargin: '500px' }
+                }),
+            { rootMargin: "500px" }
         );
-
-        return () => {
-            if (observerRef.current) {
-                observerRef.current.disconnect();
-            }
-        };
+        return () => observerRef.current?.disconnect();
     }, [pdfDoc, totalPages, renderPage]);
 
     useEffect(() => {
         if (!observerRef.current) return;
-
-        Object.values(pageRefsRef.current).forEach(el => {
-            if (el) observerRef.current.observe(el);
-        });
+        Object.values(pageRefsRef.current).forEach(
+            (el) => el && observerRef.current.observe(el)
+        );
     }, [pages, totalPages]);
 
-    // debug: log current page changes
-    useEffect(() => {
-        console.log("currentPage ->", currentPage);
-    }, [currentPage]);
-
+    // ── Render ─────────────────────────────────────────────────────────────────
     if (!file) {
         return (
             <div className="p-6 text-center text-base-content/60">
@@ -272,24 +216,59 @@ export default function ClientPdfViewer({ file: fileProp, zoom = 1 }) {
         );
     }
 
+    // zoom is applied as image width so layout reflows naturally — no page overlap
+    const imageWidth = `${Math.round(zoom * 100)}%`;
+    const isZoomed = zoom > 1.01;
+
     return (
-        <div className="w-full min-h-screen bg-black text-base-content flex flex-col">
+        <div
+            style={{
+                width: "100%",
+                height: isStandalone ? "100svh" : "100%",
+                background: "#000",
+                display: "flex",
+                flexDirection: "column",
+            }}
+        >
+            {/* Standalone header (when opened as a full /pdf-viewer page) */}
             {isStandalone && (
-                <header className="flex items-center justify-between px-10 py-10 bg-base-200 border-b border-base-300 sticky top-0 z-10">
-                    <div>
-                        <span className="font-semibold text-lg capitalize">{title}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            className="btn btn-sm btn-error"
-                            onClick={() => router.back()}
-                            aria-label="Go back"
-                        >
-                            Close
-                        </button>
-                    </div>
+                <header
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "10px 16px",
+                        background: "var(--fallback-b2,oklch(var(--b2)/1))",
+                        borderBottom: "1px solid var(--fallback-b3,oklch(var(--b3)/1))",
+                        position: "sticky",
+                        top: 0,
+                        zIndex: 10,
+                        flexShrink: 0,
+                    }}
+                >
+                    <span
+                        style={{
+                            fontWeight: 600,
+                            fontSize: 17,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            marginRight: 8,
+                        }}
+                    >
+                        {title}
+                    </span>
+                    <button
+                        className="btn btn-sm btn-error"
+                        style={{ flexShrink: 0 }}
+                        onClick={() => router.back()}
+                        aria-label="Go back"
+                    >
+                        Close
+                    </button>
                 </header>
             )}
+
             <QuranLoader
                 isVisible={loading}
                 progress={loadingProgress}
@@ -297,29 +276,31 @@ export default function ClientPdfViewer({ file: fileProp, zoom = 1 }) {
                     loadingProgress < 30
                         ? "Loading Quran PDF..."
                         : loadingProgress < 40
-                            ? "Preparing Document..."
-                            : "Rendering Pages..."
+                        ? "Preparing Document..."
+                        : "Rendering Pages..."
                 }
                 subtitle={
                     loadingProgress < 30
                         ? "Please wait while we fetch the PDF file"
                         : loadingProgress < 40
-                            ? "Processing the document for viewing"
-                            : totalPages > 0
-                                ? `Rendering page ${currentPage} of ${totalPages}`
-                                : "Preparing pages for rendering..."
+                        ? "Processing the document for viewing"
+                        : totalPages > 0
+                        ? `Rendering page ${currentPage} of ${totalPages}`
+                        : "Preparing pages for rendering..."
                 }
             />
 
             {err ? (
-                <div className="p-6 text-center">
-                    <div className="mb-4 text-red-500">
-                        <p className="font-semibold mb-2">Unable to display PDF</p>
-                        <p className="text-sm text-base-content/70">{err}</p>
+                <div style={{ padding: 24, textAlign: "center" }}>
+                    <div style={{ color: "#f87171", marginBottom: 16 }}>
+                        <p style={{ fontWeight: 600, marginBottom: 8 }}>
+                            Unable to display PDF
+                        </p>
+                        <p style={{ fontSize: 14 }}>{err}</p>
                         {isIOS() && (
-                            <p className="text-sm text-base-content/70 mt-2">
-                                iOS Safari has limitations with inline PDF preview.
-                                Please use the button below to open in a new tab.
+                            <p style={{ fontSize: 14, marginTop: 8 }}>
+                                iOS Safari has limitations with inline PDF preview. Use the
+                                button below.
                             </p>
                         )}
                     </div>
@@ -329,37 +310,65 @@ export default function ClientPdfViewer({ file: fileProp, zoom = 1 }) {
                         target="_blank"
                         rel="noreferrer"
                     >
-                        Open PDF in {isIOS() ? 'Safari' : 'External Viewer'}
+                        Open PDF in {isIOS() ? "Safari" : "External Viewer"}
                     </a>
                 </div>
             ) : (
-                <div className="flex flex-col items-stretch">
-                    {pages.map((dataUrl, idx) => (
-                        <div
-                            key={idx}
-                            ref={el => pageRefsRef.current[idx] = el}
-                            data-page={idx + 1}
-                            className="w-full flex items-center justify-center bg-black"
-                            style={{ minHeight: dataUrl ? 'auto' : '100vh' }}
-                        >
-                            {dataUrl ? (
-                                <img
-                                    src={dataUrl}
-                                    alt={`page-${idx + 1}`}
-                                    className="w-full h-auto block"
-                                    style={{
-                                        transform: `scale(${zoom})`,
-                                        transformOrigin: 'top center',
-                                        display: 'block'
-                                    }}
-                                />
-                            ) : (
-                                <div className="text-base-content/40">
-                                    Page {idx + 1}
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                <div
+                    ref={scrollContainerRef}
+                    style={{
+                        flex: 1,
+                        minHeight: 0,
+                        overflowX: isZoomed ? "auto" : "hidden",
+                        overflowY: "auto",
+                        WebkitOverflowScrolling: "touch",
+                        background: "#000",
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            minWidth: isZoomed ? imageWidth : "100%",
+                        }}
+                    >
+                        {pages.map((dataUrl, idx) => (
+                            <div
+                                key={idx}
+                                ref={(el) => (pageRefsRef.current[idx] = el)}
+                                data-page={idx + 1}
+                                style={{
+                                    width: "100%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    background: "#000",
+                                    minHeight: dataUrl ? "auto" : "100vh",
+                                }}
+                            >
+                                {dataUrl ? (
+                                    <img
+                                        src={dataUrl}
+                                        alt={`page-${idx + 1}`}
+                                        style={{
+                                            // width drives zoom — layout reflows so pages never overlap
+                                            width: imageWidth,
+                                            height: "auto",
+                                            display: "block",
+                                        }}
+                                        draggable={false}
+                                    />
+                                ) : (
+                                    <div
+                                        style={{ color: "rgba(255,255,255,0.3)", padding: 24 }}
+                                    >
+                                        Page {idx + 1}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>

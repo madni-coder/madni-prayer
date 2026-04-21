@@ -5,6 +5,7 @@ pub fn run() {
     .plugin(tauri_plugin_os::init())
     .plugin(tauri_plugin_haptics::init())
     .plugin(tauri_plugin_notification::init())
+    .plugin(tauri_plugin_geolocation::init())
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

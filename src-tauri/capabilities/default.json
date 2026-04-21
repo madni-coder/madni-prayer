@@ -8,6 +8,10 @@
         "os:default",
         "haptics:default",
         "notification:default",
+        "geolocation:default",
+        "geolocation:allow-get-current-position",
+        "geolocation:allow-watch-position",
+        "geolocation:allow-request-permissions",
         {
             "identifier": "opener:allow-open-url",
             "allow": [

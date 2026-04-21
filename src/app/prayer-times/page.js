@@ -6,6 +6,46 @@ import { FaPeriscope, FaAngleLeft, FaMapMarkerAlt, FaClock } from "react-icons/f
 import { useRouter } from "next/navigation";
 import apiClient from "../../lib/apiClient";
 
+// Helper: use Tauri native geolocation (fast, FusedLocationProvider) when available,
+// otherwise fall back to browser navigator.geolocation
+async function getNativeLocation() {
+    try {
+        const { getCurrentPosition, requestPermissions, checkPermissions } = await import("@tauri-apps/plugin-geolocation");
+        // Request permissions first
+        const perm = await checkPermissions();
+        if (perm.location === "denied") {
+            throw new Error("PERMISSION_DENIED");
+        }
+        if (perm.location !== "granted") {
+            const req = await requestPermissions(["location"]);
+            if (req.location !== "granted") throw new Error("PERMISSION_DENIED");
+        }
+        const pos = await getCurrentPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
+        return { lat: pos.coords.latitude, lon: pos.coords.longitude };
+    } catch (e) {
+        // Not in Tauri or plugin unavailable — fall back to browser API
+        return null;
+    }
+}
+
+function getBrowserLocation(options) {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) return reject({ code: 2 });
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+            err => reject(err),
+            options
+        );
+    });
+}
+
+async function getLocation() {
+    // Try native Tauri plugin first (fast on Android), fallback to browser
+    const native = await getNativeLocation();
+    if (native) return native;
+    return getBrowserLocation({ timeout: 10000, maximumAge: 60000, enableHighAccuracy: false });
+}
+
 const initialPrayerTimes = [
     {
         name: "Fajr",
@@ -246,15 +286,19 @@ export default function PrayerTimesPage() {
 
         const fetchPrayerTimesAndSetState = async (lat = null, lon = null, displayName = "") => {
             try {
+                if (lat == null || lon == null) {
+                    setLoading(false);
+                    return;
+                }
+
                 const today = new Date();
                 const y = today.getFullYear();
                 const m = String(today.getMonth() + 1).padStart(2, "0");
                 const d = String(today.getDate()).padStart(2, "0");
                 const dateStr = `${y}-${m}-${d}`;
 
-                // Use Bilaspur as default if no coordinates provided
-                const finalLat = lat || DEFAULT_BILASPUR.lat;
-                const finalLon = lon || DEFAULT_BILASPUR.lon;
+                const finalLat = lat;
+                const finalLon = lon;
                 const apiUrl = `/api/api-prayerTimes?lat=${finalLat}&lon=${finalLon}&date=${dateStr}`;
 
                 const { data: json } = await apiClient.get(apiUrl);
@@ -404,274 +448,124 @@ export default function PrayerTimesPage() {
             }
         };
 
-        // First, try to load from localStorage cache (works offline)
+        // --- Stale-While-Revalidate pattern ---
+        // Step 1: Show cached location INSTANTLY for a fast first render
+        let hasCachedLocation = false;
+        let cachedLat = null;
+        let cachedLon = null;
         try {
-            const cachedData = localStorage.getItem(LS_PRAYER_DATA_KEY);
-            if (cachedData) {
-                const cached = JSON.parse(cachedData);
-                const today = new Date();
-                const y = today.getFullYear();
-                const m = String(today.getMonth() + 1).padStart(2, "0");
-                const d = String(today.getDate()).padStart(2, "0");
-                const todayStr = `${y}-${m}-${d}`;
-
-                // If cached data is for today, use it immediately (works offline)
-                if (cached.date === todayStr) {
-                    setLocationName(cached.location || "Bilaspur, Chhattisgarh");
-                    locationSuccessRef.current = true;
-                    const timings = cached.timings || {};
-
-                    const findTimingKey = (displayName) => {
-                        const tokensMap = {
-                            Fajr: ["fajr"],
-                            "Sun Rise": ["sunrise", "sun rise", "sun"],
-                            Zuhr: ["dhuhr", "zuhr", "zuhur"],
-                            Asr: ["asr"],
-                            Maghrib: ["maghrib"],
-                            Isha: ["isha", "isya"],
-                        };
-                        const candidates = Object.keys(timings || {});
-                        const tokens = tokensMap[displayName] || [displayName.toLowerCase()];
-                        for (const token of tokens) {
-                            const found = candidates.find((k) => k.toLowerCase().includes(token));
-                            if (found) return found;
-                        }
-                        const exact = candidates.find((k) => k.toLowerCase() === displayName.toLowerCase());
-                        return exact || null;
-                    };
-
-                    const cleaned = (val) =>
-                        typeof val === "string" ? val.replace(/\s*\(.*?\)/, "").trim() : val;
-
-                    setPrayerTimes((prev) =>
-                        prev.map((p) => {
-                            const key = findTimingKey(p.name);
-                            const apiVal = key ? cleaned(timings[key]) : null;
-                            return {
-                                ...p,
-                                time: apiVal ? formatTo12Hour(apiVal) : p.time,
-                                displayName: apiVal ? p.name : "",
-                            };
-                        })
-                    );
-                    setLoading(false);
+            const saved = localStorage.getItem(LS_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed?.lat && parsed?.lon) {
+                    hasCachedLocation = true;
+                    cachedLat = parseFloat(parsed.lat);
+                    cachedLon = parseFloat(parsed.lon);
+                    // Load cache immediately so UI is not blank
+                    fetchPrayerTimesAndSetState(cachedLat, cachedLon, parsed.display_name || "");
                 }
             }
         } catch (e) {
-            console.warn("Error reading cached prayer data", e);
+            console.warn("Could not load saved city", e);
         }
+        // Step 2: Always run GPS in background to detect if user moved to a new city
+        // If cache was loaded, GPS runs silently; if no cache, GPS is the primary source
 
-        // Always clear any previously saved city so auto-detection runs fresh every time
-        try {
-            localStorage.removeItem(LS_KEY);
-        } catch (e) {
-            console.warn("Could not clear saved city", e);
-        }
+        // Auto-detect location using native Tauri plugin (Android: FusedLocationProvider ≈ 1-2s)
+        // Falls back to browser navigator.geolocation on web
+        if (!hasCachedLocation) setLocationStatus("Detecting your location...");
+        getLocation()
+            .then(async ({ lat, lon }) => {
+                // ~0.05 degrees ≈ 5 km threshold — skip re-fetch if user hasn't moved
+                const THRESHOLD = 0.05;
+                const isSameLocation =
+                    hasCachedLocation &&
+                    cachedLat !== null &&
+                    cachedLon !== null &&
+                    Math.abs(lat - cachedLat) < THRESHOLD &&
+                    Math.abs(lon - cachedLon) < THRESHOLD;
 
-        // Auto-detect location on every page load; show GPS prompt if denied or unavailable
-        if (typeof navigator !== "undefined" && navigator.geolocation) {
-            setLocationStatus("Detecting your location...");
-            navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                    const lat = pos.coords.latitude;
-                    const lon = pos.coords.longitude;
-                    setLocationStatus("Fetching Your Current City...");
-                    let displayName = "";
-                    try {
-                        const geoRes = await axios.get(
-                            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`
-                        );
-                        const addr = geoRes?.data?.address || {};
-                        const city =
-                            addr.city ||
-                            addr.town ||
-                            addr.village ||
-                            addr.municipality ||
-                            addr.state_district ||
-                            addr.state ||
-                            "";
-                        const district =
-                            addr.district ||
-                            addr.county ||
-                            addr.state_district ||
-                            addr.suburb ||
-                            "";
-                        const state = addr.state || addr.region || "";
-                        const parts = [];
-                        if (city) parts.push(city);
-                        if (district && district !== city) parts.push(district);
-                        if (state && state !== city && state !== district) parts.push(state);
-                        displayName = parts.join(", ");
-                    } catch (e) {
-                        // silent — proceed without reverse geocode
-                    }
-                    fetchPrayerTimesAndSetState(lat, lon, displayName);
-                },
-                (err) => {
-                    // err.code 1=PERMISSION_DENIED, 2=POSITION_UNAVAILABLE(GPS off), 3=TIMEOUT
-                    if (!locationSuccessRef.current) {
-                        setGpsError(err.code || 1);
-                        setShowGpsPrompt(true);
-                    }
-                    setLoading(false);
-                },
-                { timeout: 3000, maximumAge: 0 }
-            );
-        } else {
-            // Geolocation API not available at all
-            if (!locationSuccessRef.current) {
-                setGpsError(2);
-                setShowGpsPrompt(true);
-            }
-            setLoading(false);
-        }
-    }, []);
+                if (isSameLocation) return; // cached data still accurate
 
-    // Add handler for geolocation-based prayer times
-    const handleGetLocation = () => {
-        if (!navigator.geolocation) {
-            console.warn("Geolocation is not supported by your browser.");
-            return;
-        }
-        setModalLoading(true);
-        navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-                const lat = pos.coords.latitude;
-                const lon = pos.coords.longitude;
-                let city = "";
-                let formattedDisplay = "";
+                // User moved — fetch new prayer times silently
+                if (!hasCachedLocation) setLocationStatus("Fetching Your Current City...");
+                let displayName = "";
                 try {
                     const geoRes = await axios.get(
                         `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`
                     );
-                    const geoJson = geoRes?.data;
-                    const addr = geoJson?.address || {};
-                    city =
-                        addr.city ||
-                        addr.town ||
-                        addr.village ||
-                        addr.municipality ||
-                        addr.state_district ||
-                        addr.state ||
-                        "";
-                    const district =
-                        addr.district ||
-                        addr.county ||
-                        addr.state_district ||
-                        addr.suburb ||
-                        addr.block ||
-                        "";
+                    const addr = geoRes?.data?.address || {};
+                    const city = addr.city || addr.town || addr.village || addr.municipality || addr.state_district || addr.state || "";
+                    const district = addr.district || addr.county || addr.state_district || addr.suburb || "";
                     const state = addr.state || addr.region || "";
                     const parts = [];
                     if (city) parts.push(city);
                     if (district && district !== city) parts.push(district);
-                    if (state && state !== city && state !== district)
-                        parts.push(state);
-                    formattedDisplay = parts.join(", ");
-                } catch (e) {
-                    // silent
+                    if (state && state !== city && state !== district) parts.push(state);
+                    displayName = parts.join(", ");
+                } catch (e) { /* silent */ }
+                fetchPrayerTimesAndSetState(lat, lon, displayName);
+            })
+            .catch((err) => {
+                if (!locationSuccessRef.current) {
+                    setGpsError(err.code || 1);
+                    setShowGpsPrompt(true);
                 }
-                try {
-                    const today = new Date();
-                    const y = today.getFullYear();
-                    const m = String(today.getMonth() + 1).padStart(2, "0");
-                    const d = String(today.getDate()).padStart(2, "0");
-                    const dateStr = `${y}-${m}-${d}`;
-                    const { data: json } = await apiClient.get(
-                        `/api/api-prayerTimes?lat=${lat}&lon=${lon}&date=${dateStr}`
-                    );
-                    const fallbackLoc =
-                        formattedDisplay ||
-                        city ||
-                        json?.location?.name ||
-                        json?.meta?.timezone ||
-                        (json?.data &&
-                            json.data.location &&
-                            json.data.location.name) ||
-                        json?.city ||
-                        json?.address ||
-                        "";
-                    setLocationName(fallbackLoc);
-                    const timings = json.timings || {};
-                    const findTimingKey = (displayName) => {
-                        const tokensMap = {
-                            Fajr: ["fajr"],
-                            "Sun Rise": ["sunrise", "sun rise", "sun"],
-                            Zuhr: ["dhuhr", "zuhr", "zuhur"],
-                            Asr: ["asr"],
-                            Maghrib: ["maghrib"],
-                            Isha: ["isha", "isya"],
-                        };
-                        const candidates = Object.keys(timings || {});
-                        const tokens = tokensMap[displayName] || [
-                            displayName.toLowerCase(),
-                        ];
-                        for (const token of tokens) {
-                            const found = candidates.find((k) =>
-                                k.toLowerCase().includes(token)
-                            );
-                            if (found) return found;
-                        }
-                        const exact = candidates.find(
-                            (k) => k.toLowerCase() === displayName.toLowerCase()
-                        );
-                        return exact || null;
-                    };
-                    const cleaned = (val) =>
-                        typeof val === "string"
-                            ? val.replace(/\s*\(.*?\)/, "").trim()
-                            : val;
-                    setPrayerTimes((prev) =>
-                        prev.map((p) => {
-                            const key = findTimingKey(p.name);
-                            const apiVal = key ? cleaned(timings[key]) : null;
-                            return {
-                                ...p,
-                                time: apiVal ? formatTo12Hour(apiVal) : p.time,
-                                displayName: apiVal ? p.name : "",
-                            };
-                        })
-                    );
+                setLoading(false);
+            });
+    }, []);
 
-                    // Save the geolocation-based city to localStorage
-                    try {
-                        const saved = {
-                            lat: String(lat),
-                            lon: String(lon),
-                            display_name: fallbackLoc,
-                        };
-                        localStorage.setItem(LS_KEY, JSON.stringify(saved));
-                    } catch (e) {
-                        console.warn("Could not persist saved city", e);
-                    }
+    // Add handler for geolocation-based prayer times
+    const handleGetLocation = async () => {
+        setModalLoading(true);
+        try {
+            const { lat, lon } = await getLocation();
+            let city = "";
+            let formattedDisplay = "";
+            try {
+                const geoRes = await axios.get(
+                    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`
+                );
+                const addr = geoRes?.data?.address || {};
+                city = addr.city || addr.town || addr.village || addr.municipality || addr.state_district || addr.state || "";
+                const district = addr.district || addr.county || addr.state_district || addr.suburb || addr.block || "";
+                const state = addr.state || addr.region || "";
+                const parts = [];
+                if (city) parts.push(city);
+                if (district && district !== city) parts.push(district);
+                if (state && state !== city && state !== district) parts.push(state);
+                formattedDisplay = parts.join(", ");
+            } catch (e) { /* silent */ }
 
-                    // Also cache the prayer data for offline access
-                    try {
-                        const prayerDataToCache = {
-                            timings,
-                            location: fallbackLoc,
-                            date: dateStr,
-                            lat: String(lat),
-                            lon: String(lon)
-                        };
-                        localStorage.setItem(LS_PRAYER_DATA_KEY, JSON.stringify(prayerDataToCache));
-                    } catch (e) {
-                        console.warn("Could not cache prayer data", e);
-                    }
-
-                    setShowLocationModal(false);
-                    setModalLoading(false);
-                } catch (err) {
-                    console.warn("Error fetching prayer times for your location.");
-                    setModalLoading(false);
-                }
-            },
-            (err) => {
-                console.warn("Unable to retrieve your location.");
-                setModalLoading(false);
-                setModalGpsError(err.code || 2);
-            }
-        );
+            const today = new Date();
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, "0");
+            const d = String(today.getDate()).padStart(2, "0");
+            const dateStr = `${y}-${m}-${d}`;
+            const { data: json } = await apiClient.get(
+                `/api/api-prayerTimes?lat=${lat}&lon=${lon}&date=${dateStr}`
+            );
+            const fallbackLoc = formattedDisplay || city || json?.location?.name || json?.meta?.timezone || json?.city || json?.address || "";
+            setLocationName(fallbackLoc);
+            const timings = json.timings || {};
+            const findTimingKey = (displayName) => {
+                const tokensMap = { Fajr: ["fajr"], "Sun Rise": ["sunrise", "sun rise", "sun"], Zuhr: ["dhuhr", "zuhr", "zuhur"], Asr: ["asr"], Maghrib: ["maghrib"], Isha: ["isha", "isya"] };
+                const candidates = Object.keys(timings || {});
+                const tokens = tokensMap[displayName] || [displayName.toLowerCase()];
+                for (const token of tokens) { const found = candidates.find((k) => k.toLowerCase().includes(token)); if (found) return found; }
+                return candidates.find((k) => k.toLowerCase() === displayName.toLowerCase()) || null;
+            };
+            const cleaned = (val) => typeof val === "string" ? val.replace(/\s*\(.*?\)/, "").trim() : val;
+            setPrayerTimes((prev) => prev.map((p) => { const key = findTimingKey(p.name); const apiVal = key ? cleaned(timings[key]) : null; return { ...p, time: apiVal ? formatTo12Hour(apiVal) : p.time, displayName: apiVal ? p.name : "" }; }));
+            try { localStorage.setItem(LS_KEY, JSON.stringify({ lat: String(lat), lon: String(lon), display_name: fallbackLoc })); } catch (e) { console.warn("Could not persist saved city", e); }
+            try { localStorage.setItem(LS_PRAYER_DATA_KEY, JSON.stringify({ timings, location: fallbackLoc, date: dateStr, lat: String(lat), lon: String(lon) })); } catch (e) { console.warn("Could not cache prayer data", e); }
+            setShowLocationModal(false);
+            setModalLoading(false);
+        } catch (err) {
+            console.warn("Unable to retrieve your location.", err);
+            setModalLoading(false);
+            setModalGpsError(err.code || 2);
+        }
     };
 
     // NEW: Fetch prayer times by coordinates (used for selected city from search)

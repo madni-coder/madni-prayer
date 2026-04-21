@@ -210,12 +210,11 @@ export default function Page() {
             console.log('[openSurahReader] Got fileUrl:', fileUrl);
 
             const proxied = isTauri
-                ? `${REMOTE_API_BASE}/api/pdf-proxy?url=${encodeURIComponent(
-                    fileUrl
-                )}`
+                ? `${REMOTE_API_BASE}/api/pdf-proxy?url=${encodeURIComponent(fileUrl)}`
                 : `/api/pdf-proxy?url=${encodeURIComponent(fileUrl)}`;
 
             console.log("[openSurahReader] PDF proxied URL:", proxied);
+            setZoom(1);
             setCurrentPara(surah.number);
             setCurrentTitle(`${surah.number}. ${surah.name}`);
             setReaderUrl(proxied);
@@ -306,6 +305,7 @@ export default function Page() {
 
             // Use the proxied URL directly for ClientPdfViewer component
             console.log("PDF proxied URL", { proxied: proxiedFinal });
+            setZoom(1);
             setCurrentPara(p.number);
             setCurrentTitle(`Para ${p.number}`);
             setReaderUrl(proxiedFinal);
@@ -338,6 +338,7 @@ export default function Page() {
                         const blob = new Blob([byteArray], { type: "application/pdf" });
                         const objUrl = URL.createObjectURL(blob);
                         setCurrentObjectUrl(objUrl);
+                        setZoom(1);
                         setCurrentTitle('Kanzul Imaan');
                         setReaderUrl(objUrl);
                         setShowReader(true);
@@ -359,6 +360,7 @@ export default function Page() {
                 ? `${REMOTE_API_BASE}/api/pdf-proxy?url=${encodeURIComponent(rawFileUrl)}`
                 : `/api/pdf-proxy?url=${encodeURIComponent(rawFileUrl)}`;
 
+            setZoom(1);
             setCurrentTitle('Kanzul Imaan');
             setReaderUrl(proxied);
             setShowReader(true);
@@ -590,31 +592,26 @@ export default function Page() {
                 {showReader && (
                     <div className="fixed inset-0 z-[120] bg-black bg-opacity-80">
                         <div className="flex flex-col h-screen w-screen">
-                            <header className="flex items-center justify-between px-10 py-10 bg-base-200 border-b border-base-300 ">
-                                <div>
-                                    <span className="font-semibold text-lg">
-                                        {currentTitle ||
-                                            `Para ${currentPara ?? 2}`}
+                            <header className="flex items-center justify-between px-4 py-4 bg-base-200 border-b border-base-300 mt-10">
+                                <div className="flex-1 min-w-0 mr-3">
+                                    <span className="font-bold text-lg leading-snug block">
+                                        {currentTitle || `Para ${currentPara ?? 2}`}
                                     </span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    {isKanzul && (
-                                        <div className="flex items-center gap-2">
-                                            <button className="btn btn-sm" onClick={decreaseZoom} aria-label="Zoom out">-</button>
-                                            <div className="text-sm px-2">{Math.round(zoom * 100)}%</div>
-                                            <button className="btn btn-sm" onClick={increaseZoom} aria-label="Zoom in">+</button>
-                                        </div>
-                                    )}
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    <button className="btn btn-sm" onClick={decreaseZoom} aria-label="Zoom out">−</button>
+                                    <div className="text-sm px-1 min-w-[44px] text-center">{Math.round(zoom * 100)}%</div>
+                                    <button className="btn btn-sm" onClick={increaseZoom} aria-label="Zoom in">+</button>
                                     <button
-                                        className="btn btn-sm btn-error"
+                                        className="btn btn-sm btn-error rounded-full"
                                         onClick={closeReader}
                                     >
                                         Close
                                     </button>
                                 </div>
                             </header>
-                            <main className="relative flex-1 overflow-auto bg-base-100">
-                                <ClientPdfViewer file={readerUrl} zoom={isKanzul ? zoom : 1} />
+                            <main className="relative flex-1 min-h-0 bg-black" style={{ overflow: 'hidden' }}>
+                                <ClientPdfViewer file={readerUrl} zoom={zoom} />
                             </main>
                         </div>
                     </div>
