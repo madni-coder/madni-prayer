@@ -2,7 +2,7 @@
     "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
     "productName": "Raahe Hidayat",
     "version": "8.7.0",
-    "identifier": "com.prayer.raahe",
+    "identifier": "com.prayer.madni",
     "build": {
         "frontendDist": "../out",
         "devUrl": "http://localhost:3000",

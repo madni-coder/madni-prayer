@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { Calendar, X } from "lucide-react";
-import { FaAngleLeft, FaMapMarkerAlt, FaClock } from "react-icons/fa";
+import { FaPeriscope, FaAngleLeft, FaMapMarkerAlt, FaClock } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import apiClient from "../../lib/apiClient";
 
@@ -75,9 +75,9 @@ function formatTo12Hour(timeStr) {
 export default function PrayerTimesPage() {
     const router = useRouter();
     // Real-time clock state
-    const [now, setNow] = useState(new Date());
+    const [now, setNow] = useState(null);
     const [prayerTimes, setPrayerTimes] = React.useState(initialPrayerTimes);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [locationName, setLocationName] = useState("");
     // Date objects for each prayer time (for countdown calculations)
     const [prayerDateTimes, setPrayerDateTimes] = useState([]);
@@ -95,15 +95,15 @@ export default function PrayerTimesPage() {
     const LS_PRAYER_DATA_KEY = "prayer_times_data"; // For caching prayer times
     // prevent duplicate initial fetch (e.g., React 18 StrictMode)
     const initialFetchDoneRef = useRef(false);
-
-    // Default Bilaspur coordinates
-    const DEFAULT_BILASPUR = {
-        lat: "22.0796",
-        lon: "82.1391",
-        display_name: "Bilaspur, Chhattisgarh"
-    };
+    const locationSuccessRef = useRef(false); // true once a real location (GPS or cache) is loaded
+    const [locationStatus, setLocationStatus] = useState("Detecting your location...");
+    const [showGpsPrompt, setShowGpsPrompt] = useState(false);
+    const [gpsError, setGpsError] = useState(null); // 1=permission denied, 2=GPS/location off
+    const [modalLoading, setModalLoading] = useState(false); // loading inside location modal
+    const [modalGpsError, setModalGpsError] = useState(null); // error inside location modal
 
     useEffect(() => {
+        setNow(new Date());
         const timer = setInterval(() => setNow(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
@@ -270,6 +270,7 @@ export default function PrayerTimesPage() {
                     json?.address ||
                     "";
                 setLocationName(loc);
+                locationSuccessRef.current = true;
 
                 const timings = json.timings || {};
 
@@ -417,6 +418,7 @@ export default function PrayerTimesPage() {
                 // If cached data is for today, use it immediately (works offline)
                 if (cached.date === todayStr) {
                     setLocationName(cached.location || "Bilaspur, Chhattisgarh");
+                    locationSuccessRef.current = true;
                     const timings = cached.timings || {};
 
                     const findTimingKey = (displayName) => {
@@ -459,26 +461,69 @@ export default function PrayerTimesPage() {
             console.warn("Error reading cached prayer data", e);
         }
 
-        // Check if we have a saved city in localStorage
-        let savedCity = null;
+        // Always clear any previously saved city so auto-detection runs fresh every time
         try {
-            const raw = localStorage.getItem(LS_KEY);
-            if (raw) {
-                const obj = JSON.parse(raw);
-                if (obj && obj.lat && obj.lon) {
-                    savedCity = obj;
-                }
-            }
+            localStorage.removeItem(LS_KEY);
         } catch (e) {
-            console.warn("Error reading from localStorage", e);
+            console.warn("Could not clear saved city", e);
         }
 
-        // Fetch prayer times (use saved city if available, otherwise Bilaspur default)
-        if (savedCity) {
-            fetchPrayerTimesAndSetState(savedCity.lat, savedCity.lon, savedCity.display_name || "");
+        // Auto-detect location on every page load; show GPS prompt if denied or unavailable
+        if (typeof navigator !== "undefined" && navigator.geolocation) {
+            setLocationStatus("Detecting your location...");
+            navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+                    setLocationStatus("Fetching Your Current City...");
+                    let displayName = "";
+                    try {
+                        const geoRes = await axios.get(
+                            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`
+                        );
+                        const addr = geoRes?.data?.address || {};
+                        const city =
+                            addr.city ||
+                            addr.town ||
+                            addr.village ||
+                            addr.municipality ||
+                            addr.state_district ||
+                            addr.state ||
+                            "";
+                        const district =
+                            addr.district ||
+                            addr.county ||
+                            addr.state_district ||
+                            addr.suburb ||
+                            "";
+                        const state = addr.state || addr.region || "";
+                        const parts = [];
+                        if (city) parts.push(city);
+                        if (district && district !== city) parts.push(district);
+                        if (state && state !== city && state !== district) parts.push(state);
+                        displayName = parts.join(", ");
+                    } catch (e) {
+                        // silent — proceed without reverse geocode
+                    }
+                    fetchPrayerTimesAndSetState(lat, lon, displayName);
+                },
+                (err) => {
+                    // err.code 1=PERMISSION_DENIED, 2=POSITION_UNAVAILABLE(GPS off), 3=TIMEOUT
+                    if (!locationSuccessRef.current) {
+                        setGpsError(err.code || 1);
+                        setShowGpsPrompt(true);
+                    }
+                    setLoading(false);
+                },
+                { timeout: 3000, maximumAge: 0 }
+            );
         } else {
-            // No saved city - use Bilaspur as default
-            fetchPrayerTimesAndSetState(DEFAULT_BILASPUR.lat, DEFAULT_BILASPUR.lon, DEFAULT_BILASPUR.display_name);
+            // Geolocation API not available at all
+            if (!locationSuccessRef.current) {
+                setGpsError(2);
+                setShowGpsPrompt(true);
+            }
+            setLoading(false);
         }
     }, []);
 
@@ -488,7 +533,7 @@ export default function PrayerTimesPage() {
             console.warn("Geolocation is not supported by your browser.");
             return;
         }
-        setLoading(true);
+        setModalLoading(true);
         navigator.geolocation.getCurrentPosition(
             async (pos) => {
                 const lat = pos.coords.latitude;
@@ -615,15 +660,16 @@ export default function PrayerTimesPage() {
                     }
 
                     setShowLocationModal(false);
-                    setLoading(false);
+                    setModalLoading(false);
                 } catch (err) {
                     console.warn("Error fetching prayer times for your location.");
-                    setLoading(false);
+                    setModalLoading(false);
                 }
             },
             (err) => {
                 console.warn("Unable to retrieve your location.");
-                setLoading(false);
+                setModalLoading(false);
+                setModalGpsError(err.code || 2);
             }
         );
     };
@@ -821,9 +867,84 @@ export default function PrayerTimesPage() {
 
     return (
         <div className="w-full min-h-screen bg-base-200">
+
+
+
             {/* Header Section */}
             <div className="w-full bg-base-100 border-b border-base-300 shadow-sm">
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 md:py-4">
+
+                    {/* GPS warning banner — shown above back button */}
+                    {showGpsPrompt && (
+                        <div className="flex items-center justify-between gap-2 mb-3 px-3 py-2 rounded-lg bg-warning/10 border border-warning">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <FaMapMarkerAlt className="text-warning shrink-0 w-4 h-4" />
+                                <p className="text-warning text-l font-medium leading-tight">
+                                    {gpsError === 1
+                                        ? "Please Turn On Location"
+                                        : "GPS is off — enable it for accurate prayer times"}
+                                </p>
+                            </div>
+                            <button
+                                className="shrink-0 bg-warning text-warning-content text-xs font-bold px-2.5 py-1 rounded-lg hover:bg-warning/80 transition-colors"
+                                onClick={() => {
+                                    setShowGpsPrompt(false);
+                                    setGpsError(null);
+                                    setLoading(true);
+                                    setLocationStatus("Detecting your location...");
+                                    navigator.geolocation.getCurrentPosition(
+                                        async (pos) => {
+                                            const lat = pos.coords.latitude;
+                                            const lon = pos.coords.longitude;
+                                            setLocationStatus("Fetching prayer times...");
+                                            let displayName = "";
+                                            try {
+                                                const geoRes = await axios.get(
+                                                    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`
+                                                );
+                                                const addr = geoRes?.data?.address || {};
+                                                const city = addr.city || addr.town || addr.village || addr.municipality || addr.state_district || addr.state || "";
+                                                const district = addr.district || addr.county || addr.state_district || addr.suburb || "";
+                                                const state = addr.state || addr.region || "";
+                                                const parts = [];
+                                                if (city) parts.push(city);
+                                                if (district && district !== city) parts.push(district);
+                                                if (state && state !== city && state !== district) parts.push(state);
+                                                displayName = parts.join(", ");
+                                            } catch (e) { /* silent */ }
+                                            const today = new Date();
+                                            const y = today.getFullYear();
+                                            const m = String(today.getMonth() + 1).padStart(2, "0");
+                                            const d = String(today.getDate()).padStart(2, "0");
+                                            const dateStr = `${y}-${m}-${d}`;
+                                            try {
+                                                const { data: json } = await apiClient.get(`/api/api-prayerTimes?lat=${lat}&lon=${lon}&date=${dateStr}`);
+                                                const loc = displayName || json?.location?.name || json?.meta?.timezone || json?.city || "";
+                                                setLocationName(loc);
+                                                const timings = json.timings || {};
+                                                const tkMap = { Fajr: ["fajr"], "Sun Rise": ["sunrise", "sun rise", "sun"], Zuhr: ["dhuhr", "zuhr", "zuhur"], Asr: ["asr"], Maghrib: ["maghrib"], Isha: ["isha", "isya"] };
+                                                const findKey = (n) => { const cands = Object.keys(timings); for (const t of (tkMap[n] || [n.toLowerCase()])) { const f = cands.find(k => k.toLowerCase().includes(t)); if (f) return f; } return cands.find(k => k.toLowerCase() === n.toLowerCase()) || null; };
+                                                const cleaned = (v) => typeof v === "string" ? v.replace(/\s*\(.*?\)/, "").trim() : v;
+                                                setPrayerTimes(prev => prev.map(p => { const key = findKey(p.name); const av = key ? cleaned(timings[key]) : null; return { ...p, time: av ? formatTo12Hour(av) : p.time, displayName: av ? p.name : "" }; }));
+                                                try { localStorage.setItem(LS_KEY, JSON.stringify({ lat: String(lat), lon: String(lon), display_name: loc })); } catch (e) { }
+                                                try { localStorage.setItem(LS_PRAYER_DATA_KEY, JSON.stringify({ timings, location: loc, date: dateStr, lat: String(lat), lon: String(lon) })); } catch (e) { }
+                                            } catch (e) { console.error(e); }
+                                            setLoading(false);
+                                        },
+                                        (err) => {
+                                            setGpsError(err.code || 1);
+                                            setLoading(false);
+                                            setShowGpsPrompt(true);
+                                        },
+                                        { timeout: 10000, maximumAge: 0 }
+                                    );
+                                }}
+                            >
+                                Retry
+                            </button>
+                        </div>
+                    )}
+
                     <button
                         className="flex items-center gap-1.5 text-primary hover:text-green-500 font-medium transition-colors mb-2 md:mb-3"
                         onClick={() => router.push("/")}
@@ -846,16 +967,16 @@ export default function PrayerTimesPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm md:text-base text-base-content font-bold">
-                                    {now.toLocaleDateString("en-US", {
+                                    {now ? now.toLocaleDateString("en-US", {
                                         weekday: "short",
                                         month: "short",
                                         day: "numeric",
-                                    })}
+                                    }) : "—"}
                                 </p>
                                 <p className="text-xs text-white">
-                                    {now.toLocaleDateString("en-US", {
+                                    {now ? now.toLocaleDateString("en-US", {
                                         year: "numeric",
-                                    })}
+                                    }) : "—"}
                                 </p>
                             </div>
                         </div>
@@ -867,8 +988,8 @@ export default function PrayerTimesPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs text-white font-large mb-0.5">Current Time</p>
-                                <p className="text-sm md:text-base text-base-content font-bold">
-                                    {formatTime(now)}
+                                <p className="text-sm md:text-base text-base-content font-bold font-mono tabular-nums whitespace-nowrap">
+                                    {now ? formatTime(now) : "—"}
                                 </p>
 
                             </div>
@@ -957,14 +1078,14 @@ export default function PrayerTimesPage() {
                                 >
                                     <FaMapMarkerAlt className="w-4 h-4 text-warning" />
                                     <div className="flex flex-col items-start">
-                                        {locationName ? (
-                                            <>
-                                                <span className="text-sm font-semibold text-base-content underline">
-                                                    {locationName.split(",")[0]}
-                                                </span>
-                                            </>
+                                        {loading ? (
+                                            <span className="text-xs text-base-content/60 animate-pulse">{locationStatus}</span>
+                                        ) : locationName ? (
+                                            <span className="text-sm font-semibold text-base-content underline">
+                                                {locationName.split(",")[0]}
+                                            </span>
                                         ) : (
-                                            <span className="text-sm text-base-content/40">Select location...</span>
+                                            <span className="text-sm text-base-content/40">Tap to select location</span>
                                         )}
                                     </div>
                                 </button>
@@ -1043,14 +1164,41 @@ export default function PrayerTimesPage() {
 
                         {/* Modal Body */}
                         <div className="p-6 space-y-4">
-                            {/* Get Location Button */}
-                            <button
-                                className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                                onClick={handleGetLocation}
-                            >
-                                <FaMapMarkerAlt className="w-4 h-4" />
-                                Use My Current Location
-                            </button>
+                            {/* Get Location Button / Loader */}
+                            {modalLoading ? (
+                                <div className="w-full bg-green-500/10 border border-green-500/30 rounded-lg py-3 px-4 flex flex-col items-center gap-2">
+                                    <div className="flex gap-1.5">
+                                        {[0, 120, 240].map((delay) => (
+                                            <span
+                                                key={delay}
+                                                className="w-2 h-2 bg-green-500 rounded-full animate-bounce"
+                                                style={{ animationDelay: `${delay}ms` }}
+                                            />
+                                        ))}
+                                    </div>
+                                    <p className="text-green-500 text-xs font-medium animate-pulse">Detecting your location...</p>
+                                </div>
+                            ) : (
+                                <button
+                                    className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                                    onClick={() => { setModalGpsError(null); handleGetLocation(); }}
+                                >
+                                    <FaMapMarkerAlt className="w-4 h-4" />
+                                    Use My Current Location
+                                </button>
+                            )}
+
+                            {/* Inline GPS error */}
+                            {modalGpsError && !modalLoading && (
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning">
+                                    <FaMapMarkerAlt className="text-warning w-3.5 h-3.5 shrink-0" />
+                                    <p className="text-warning text-xs font-medium">
+                                        {modalGpsError === 1
+                                            ? "Please enable GPS and try again"
+                                            : "Please enable GPS and try again"}
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Divider */}
                             <div className="flex items-center gap-3">
@@ -1147,7 +1295,7 @@ export default function PrayerTimesPage() {
                                     );
                                 }}
                             >
-                                {loading ? "Loading..." : "Save Location"}
+                                Done
                             </button>
                         </div>
                     </div>
