@@ -2,11 +2,12 @@
 
 // Module-level cache — survives navigations within the same browser session
 let _cachedEvents = null;
-let _cacheTime    = 0;
+let _cacheTime = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import apiClient from "@/lib/apiClient";
 
 // ─── Button colour helpers ────────────────────────────────────────────────────
 const btnClass = (color, active) => {
@@ -163,19 +164,13 @@ function EventCard({ event }) {
         setSubmitting(true);
         setSubmitError(null);
         try {
-            const res = await fetch("/api/committee-event-responses", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    eventId: event.id,
-                    masjidLoginId: Number(masjidLoginId),
-                    masjidName,
-                    vote,
-                    comment,
-                }),
+            await apiClient.post("/api/committee-event-responses", {
+                eventId: event.id,
+                masjidLoginId: Number(masjidLoginId),
+                masjidName,
+                vote,
+                comment,
             });
-            const json = await res.json();
-            if (!res.ok) throw new Error(json.error || "Failed to submit");
             setSubmitted(true);
         } catch (err) {
             setSubmitError(err.message || "Something went wrong. Try again.");
@@ -318,13 +313,11 @@ export default function RhPrograms() {
             setLoading(true);
             setError(null);
             try {
-                const res  = await fetch("/api/committee-events");
-                const json = await res.json();
-                if (!res.ok) throw new Error(json.error || "Failed to load events");
+                const { data: json } = await apiClient.get("/api/committee-events");
                 const evts = json.events || [];
                 // Store in module-level cache
                 _cachedEvents = evts;
-                _cacheTime    = Date.now();
+                _cacheTime = Date.now();
                 if (mounted) setEvents(evts);
             } catch (err) {
                 console.error("Failed to load committee events", err);

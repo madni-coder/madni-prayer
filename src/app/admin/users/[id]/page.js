@@ -1,5 +1,5 @@
-// Allow dynamic params so IDs not present at build-time still work
-export const dynamicParams = true;
+// Static export (Tauri) requires dynamicParams = false
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
     const placeholder = [{ id: "__placeholder" }];
