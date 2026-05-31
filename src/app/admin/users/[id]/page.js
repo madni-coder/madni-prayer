@@ -1,5 +1,5 @@
 // Static export (Tauri) requires dynamicParams = false
-export const dynamicParams = false;
+export const dynamicParams = true;
 
 export async function generateStaticParams() {
     const placeholder = [{ id: "__placeholder" }];
